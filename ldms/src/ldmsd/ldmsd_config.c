@@ -106,18 +106,36 @@ struct ldmsd_plugin_cfg *ldmsd_get_plugin(char *name)
 	return NULL;
 }
 
+#if OVIS_LDMS_STANDALONE
+extern struct ldmsd_plugin *meminfo_get_plugin(ldmsd_msg_log_f pf);
+extern struct ldmsd_plugin *vmstat_get_plugin(ldmsd_msg_log_f pf);
+#endif /* OVIS_LDMS_STANDALONE */
 struct ldmsd_plugin_cfg *new_plugin(char *plugin_name,
 				char *errstr, size_t errlen)
 {
-	char library_name[LDMSD_PLUGIN_LIBPATH_MAX];
-	char library_path[LDMSD_PLUGIN_LIBPATH_MAX];
+	ldmsd_plugin_get_f pget;
 	struct ldmsd_plugin *lpi;
 	struct ldmsd_plugin_cfg *pi = NULL;
+	void *d = NULL;
+	char library_name[LDMSD_PLUGIN_LIBPATH_MAX];
+#if OVIS_LDMS_STANDALONE
+	if (0 == strcmp(plugin_name, "meminfo")) {
+		pget = meminfo_get_plugin;
+	} else if (0 == strcmp(plugin_name, "vmstat")) {
+		pget = vmstat_get_plugin;
+	} else {
+		ldmsd_log(LDMSD_LERROR, "Plugin %s not supported.\n", plugin_name);
+		snprintf(errstr, errlen, "Plugin %s not supported.\n", plugin_name);
+		goto err;
+	}
+
+	snprintf(library_name, sizeof(library_name), "-");
+#else /* OVIS_LDMS_STANDALONE */
+	char library_path[LDMSD_PLUGIN_LIBPATH_MAX];
 	char *pathdir = library_path;
 	char *libpath;
 	char *saveptr = NULL;
 	char *path = getenv("LDMSD_PLUGIN_LIBPATH");
-	void *d = NULL;
 
 	if (!path)
 		path = LDMSD_PLUGIN_LIBPATH_DEFAULT;
@@ -154,13 +172,14 @@ struct ldmsd_plugin_cfg *new_plugin(char *plugin_name,
 		goto err;
 	}
 
-	ldmsd_plugin_get_f pget = dlsym(d, "get_plugin");
+	pget = dlsym(d, "get_plugin");
 	if (!pget) {
 		snprintf(errstr, errlen,
 			"The library, '%s',  is missing the get_plugin() "
 			 "function.", plugin_name);
 		goto err;
 	}
+#endif /* OVIS_LDMS_STANDALONE */
 	lpi = pget(ldmsd_log);
 	if (!lpi) {
 		snprintf(errstr, errlen, "The plugin '%s' could not be loaded.",
@@ -196,8 +215,10 @@ err:
 			free(pi->libpath);
 		free(pi);
 	}
+#if !OVIS_LDMS_STANDALONE
 	if (d)
 		dlclose(d);
+#endif /* OVIS_LDMS_STANDALONE */
 	return NULL;
 }
 
@@ -206,7 +227,9 @@ void destroy_plugin(struct ldmsd_plugin_cfg *p)
 	free(p->libpath);
 	free(p->name);
 	LIST_REMOVE(p, entry);
+#if !OVIS_LDMS_STANDALONE
 	dlclose(p->handle);
+#endif /* OVIS_LDMS_STANDALONE */
 	free(p);
 }
 

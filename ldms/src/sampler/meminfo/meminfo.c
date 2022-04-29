@@ -267,9 +267,18 @@ static struct ldmsd_sampler meminfo_plugin = {
 	.sample = sample,
 };
 
+#if OVIS_LDMS_STANDALONE
+struct ldmsd_plugin *meminfo_get_plugin(ldmsd_msg_log_f pf)
+{
+	msglog = pf;
+	set = NULL;
+	return &meminfo_plugin.base;
+}
+#else /* OVIS_LDMS_STANDALONE */
 struct ldmsd_plugin *get_plugin(ldmsd_msg_log_f pf)
 {
 	msglog = pf;
 	set = NULL;
 	return &meminfo_plugin.base;
 }
+#endif /* OVIS_LDMS_STANDALONE */

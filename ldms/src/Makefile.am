@@ -3,13 +3,14 @@ SUBDIRS =
 
 SUBDIRS += core
 
-SUBDIRS += third-plugins
 SUBDIRS += ldmsd
 SUBDIRS += decomp
 
 if ENABLE_OVIS_AUTH
 SUBDIRS += auth
 endif
+
+SUBDIRS += third-plugins
 
 if ENABLE_STORE
 SUBDIRS += store
@@ -18,6 +19,7 @@ endif
 if ENABLE_SAMPLER
 SUBDIRS += sampler
 endif
+
 
 if ENABLE_LDMS_TEST
 SUBDIRS += test
