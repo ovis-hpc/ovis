@@ -1,7 +1,10 @@
 EXTRA_DIST=
 lib_LTLIBRARIES=
 SUBDIRS = . test
-sbin_PROGRAMS = ldmsd ldms_ls ldmsctl
+sbin_PROGRAMS = ldms_ls ldmsctl
+if !ENABLE_STANDALONE
+sbin_PROGRAMS += ldmsd
+endif
 check_PROGRAMS = test_plugattr
 
 AM_LDFLAGS = @OVIS_LIB_ABS@
@@ -29,6 +32,9 @@ ldms_ls_SOURCES = ldms_ls.c
 ldms_ls_LDADD = ../core/libldms.la $(LZAP) $(LMMALLOC) $(LOVIS_UTIL) $(LCOLL) \
         -lpthread \
         @LDFLAGS_GETTIME@
+if ENABLE_STANDALONE
+ldms_ls_LDFLAGS = -static
+endif
 
 lib_LTLIBRARIES += libldmsd_stream.la
 libldmsd_stream_la_SOURCES = ldmsd_stream.c ldmsd_stream.h ldmsd_request_util.c
@@ -40,6 +46,7 @@ lib_LTLIBRARIES += libldmsd_request.la
 libldmsd_request_la_SOURCES = ldmsd_request_util.c
 libldmsd_request_la_LIBADD = ../core/libldms.la
 
+if !ENABLE_STANDALONE
 ldmsd_SOURCES = ldmsd.c ldmsd_config.c \
 	ldmsd_request.c \
 	ldmsd_request.h \
@@ -57,11 +64,15 @@ if ENABLE_RABBITV3
 ldmsd_LDADD += -lrabbitmq
 ldmsd_CFLAGS += -DENABLE_RABBITMQ
 endif
+endif
 
 ldmsctl_SOURCES = ldmsctl.c
 ldmsctl_LDADD = ../core/libldms.la libldmsd_request.la \
 		$(LOVIS_CTRL) $(LOVIS_UTIL) $(LMMALLOC) $(LCOLL) $(LZAP) $(LJSON_UTIL) \
 		-lm -lpthread @LDFLAGS_GETTIME@ @LDFLAGS_READLINE@
+if ENABLE_STANDALONE
+ldmsctl_LDFLAGS = -static
+endif
 
 lib_LTLIBRARIES += libldmsd_plugattr.la
 libldmsd_plugattr_la_SOURCES = ldmsd_plugattr.c ldmsd_plugattr.h

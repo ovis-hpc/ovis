@@ -24,6 +24,10 @@ endif
 
 SUBDIRS += contrib
 
+if ENABLE_STANDALONE
+SUBDIRS += standalone
+endif
+
 ac_configure_args=@ac_configure_args@
 
 do_subst = @LDMS_SUBST_RULE@

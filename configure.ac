@@ -1072,6 +1072,7 @@ ldms/src/contrib/sampler/geopm_sampler/Makefile
 ldms/src/third-plugins/Makefile
 ldms/src/ldmsd/Makefile
 ldms/src/ldmsd/test/Makefile
+ldms/src/standalone/Makefile
 ldms/scripts/Makefile
 ldms/src/test/Makefile
 ldms/etc/Makefile
