@@ -12,6 +12,7 @@ AC_REQUIRE_AUX_FILE([tap-driver.sh])
 AC_PROG_CC
 gl_EARLY
 AM_INIT_AUTOMAKE([foreign tar-pax])
+
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AX_PREFIX_CONFIG_H_G(ovis-ldms-config.h,,,[
 #ifndef OVIS_FLEX
@@ -117,6 +118,13 @@ OPTION_LIB_FLAGS([OVIS],[ \
 AC_SEARCH_LIBS([clock_gettime],[rt posix4],[LDFLAGS_GETTIME=$LIBS])
 AC_SUBST([LDFLAGS_GETTIME])
 LIBS=""
+
+OPTION_DEFAULT_DISABLE([standalone], [ENABLE_STANDALONE])
+standalone=0
+if test "$disable_standalone" != "yes"; then
+	standalone=1
+fi
+AC_DEFINE_UNQUOTED([STANDALONE],[$standalone],[Build standalone executable file (1) or not (0)])
 
 OPTION_DEFAULT_ENABLE([coll], [ENABLE_COLL])
 OPTION_DEFAULT_ENABLE([ovis_ev], [ENABLE_OVIS_EV])
