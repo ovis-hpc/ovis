@@ -16,11 +16,17 @@ libldms_la_SOURCES = ldms.c ldms_xprt.c ldms_private.h \
 		     ldms_auth.c ldms_xprt_auth.c \
 		     rrbt.c rrbt.h \
 		     ldms_heap.c ldms_heap.h
+if ENABLE_STANDALONE
+libldms_la_SOURCES += ../auth/ldms_auth_none.c \
+		      ../auth/ldms_auth_none.h
+endif
 libldms_la_LIBADD = -ldl -lpthread $(top_builddir)/lib/src/coll/libcoll.la \
 		    $(top_builddir)/lib/src/ovis_json/libovis_json.la \
 		    $(top_builddir)/lib/src/ovis_ev/libovis_ev.la \
 		    $(top_builddir)/lib/src/mmalloc/libmmalloc.la \
 		    $(top_builddir)/lib/src/zap/libzap.la \
 		    @OPENSSL_LIBS@
-
+#if ENABLE_STANDALONE
+#libldms_la_LIBADD += $(builddir)/../auth/libldms_auth_none.la
+#endif
 lib_LTLIBRARIES += libldms.la

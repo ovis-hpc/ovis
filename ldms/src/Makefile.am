@@ -1,9 +1,10 @@
 ACLOCAL_AMFLAGS = -I m4
 SUBDIRS =
-SUBDIRS += third-plugins
-SUBDIRS += core
-SUBDIRS += ldmsd
 
+SUBDIRS += core
+
+SUBDIRS += third-plugins
+SUBDIRS += ldmsd
 SUBDIRS += decomp
 
 if ENABLE_OVIS_AUTH

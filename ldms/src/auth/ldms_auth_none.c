@@ -67,7 +67,11 @@ int __auth_xprt_recv_cb(ldms_auth_t auth, ldms_t xprt,
 static
 int __auth_cred_get(ldms_auth_t auth, ldms_cred_t cred);
 
+#if OVIS_LDMS_STANDALONE
+struct ldms_auth_plugin none_plugin = {
+#else /* OVIS_LDMS_STANDALONE */
 struct ldms_auth_plugin plugin = {
+#endif /* OVIS_LDMS_STANDALONE */
 	.name = "none",
 	.auth_new = __auth_new,
 	.auth_clone = __auth_clone,
@@ -78,7 +82,11 @@ struct ldms_auth_plugin plugin = {
 	.auth_cred_get = __auth_cred_get,
 };
 
+#if OVIS_LDMS_STANDALONE
+struct ldms_auth auth_obj = { .plugin = &none_plugin };
+#else /* OVIS_LDMS_STANDALONE */
 struct ldms_auth auth_obj = { .plugin = &plugin };
+#endif /* OVIS_LDMS_STANDALONE */
 
 static
 ldms_auth_t __auth_new(ldms_auth_plugin_t plugin,
@@ -135,7 +143,14 @@ int __auth_cred_get(ldms_auth_t auth, ldms_cred_t cred)
 	return 0;
 }
 
+#if OVIS_LDMS_STANDALONE
+ldms_auth_plugin_t none__ldms_auth_plugin_get()
+{
+	return &none_plugin;
+}
+#else /* OVIS_LDMS_STANDALONE */
 ldms_auth_plugin_t __ldms_auth_plugin_get()
 {
 	return &plugin;
 }
+#endif /* OVIS_LDMS_STANDALONE */

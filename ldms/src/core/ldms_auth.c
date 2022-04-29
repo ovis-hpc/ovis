@@ -51,16 +51,24 @@
 #include <errno.h>
 #include <dlfcn.h>
 
+#include "ovis-ldms-config.h"
 #include "zap/zap.h"
 #include "ldms_auth.h"
 
+#if OVIS_LDMS_STANDALONE
+extern struct ldms_auth_plugin none_plugin;
+#endif /* OVIS_LDMS_STANDALONE */
 ldms_auth_plugin_t ldms_auth_plugin_get(const char *name)
 {
+	ldms_auth_plugin_get_fn f = NULL;
+	ldms_auth_plugin_t p;
+
+#if OVIS_LDMS_STANDALONE
+	p = &none_plugin;
+#else /* OVIS_LDMS_STANDALONE */
 	char libname[LDMS_AUTH_NAME_MAX + 17];
 	int len;
 	void *d = NULL;
-	ldms_auth_plugin_t p;
-	ldms_auth_plugin_get_fn f;
 
 	len = snprintf(libname, sizeof(libname), "libldms_auth_%s.so", name);
 	if (len >= sizeof(libname)) {
@@ -80,11 +88,14 @@ ldms_auth_plugin_t ldms_auth_plugin_get(const char *name)
 	p = f();
 	if (!p)
 		goto err;
+#endif /* STANDALONE */
 	return p;
 
  err:
+#if !OVIS_LDMS_STANDALONE
 	if (d)
 		dlclose(d);
+#endif /* !OVIS_LDMS_STANDALONE */
 	return NULL;
 }
 
