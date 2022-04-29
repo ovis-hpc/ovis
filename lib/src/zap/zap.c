@@ -116,6 +116,17 @@ pthread_mutex_t zap_list_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void zap_init(void);
 
+const char *zap_ep_state_str[] = {
+	[ZAP_EP_INIT]        =  "ZAP_EP_INIT",
+	[ZAP_EP_LISTENING]   =  "ZAP_EP_LISTENING",
+	[ZAP_EP_ACCEPTING]   =  "ZAP_EP_ACCEPTING",
+	[ZAP_EP_CONNECTING]  =  "ZAP_EP_CONNECTING",
+	[ZAP_EP_CONNECTED]   =  "ZAP_EP_CONNECTED",
+	[ZAP_EP_PEER_CLOSE]  =  "ZAP_EP_PEER_CLOSE",
+	[ZAP_EP_CLOSE]       =  "ZAP_EP_CLOSE",
+	[ZAP_EP_ERROR]       =  "ZAP_EP_ERROR"
+};
+
 const char *__zap_ep_state_str(zap_ep_state_t state)
 {
 	if (state < ZAP_EP_INIT || ZAP_EP_ERROR < state)
@@ -269,6 +280,15 @@ struct zap_tbl_entry __zap_tbl[] = {
 	[ ZAP_LAST   ]  =  { 0          , NULL     , NULL },
 };
 
+int zap_version_check(struct zap_version *v)
+{
+	return ZAP_VERSION_EQUAL(*v);
+}
+
+#if OVIS_LDMS_STANDALONE
+extern zap_err_t sock_zap_transport_get(zap_t *pz, zap_log_fn_t log_fn,
+					zap_mem_info_fn_t mem_info_fn);
+#endif /* OVIS_LDMS_STANDALONE */
 zap_t zap_get(const char *name, zap_log_fn_t log_fn, zap_mem_info_fn_t mem_info_fn)
 {
 	char _libdir[MAX_ZAP_LIBPATH];
@@ -312,8 +332,15 @@ zap_t zap_get(const char *name, zap_log_fn_t log_fn, zap_mem_info_fn_t mem_info_
 		goto err;
 	}
 
+	zap_get_fn_t get;
 	zap_init();
 
+#if OVIS_LDMS_STANDALONE
+	if (0 == strcmp("sock", name))
+		get = sock_zap_transport_get;
+	else
+		get = NULL;
+#else /* OVIS_LDMS_STANDALONE */
 	libdir = getenv("ZAP_LIBPATH");
 	if (!libdir || libdir[0] == '\0')
 		libdir = ZAP_LIBPATH_DEFAULT;
@@ -343,7 +370,7 @@ zap_t zap_get(const char *name, zap_log_fn_t log_fn, zap_mem_info_fn_t mem_info_
 	}
 
 	dlerror();
-	zap_get_fn_t get = dlsym(d, "zap_transport_get");
+	get = dlsym(d, "zap_transport_get");
 	errstr = dlerror();
 	if (errstr || !get) {
 		log_fn("dlsym: %s\n", errstr);
@@ -351,6 +378,7 @@ zap_t zap_get(const char *name, zap_log_fn_t log_fn, zap_mem_info_fn_t mem_info_
 		 * symbol and is therefore likely the wrong library type */
 		goto err1;
 	}
+#endif /* OVIS_LDMS_STANDALONE */
 	ret = get(&z, log_fn, mem_info_fn);
 	if (ret)
 		goto err1;
@@ -369,12 +397,14 @@ zap_t zap_get(const char *name, zap_log_fn_t log_fn, zap_mem_info_fn_t mem_info_
 
 	return z;
 err1:
+#if !OVIS_LDMS_STANDALONE
 	dlerror();
 	ret = dlclose(d);
 	if (ret) {
 		errstr = dlerror();
 		log_fn("dlclose: %s\n", errstr);
 	}
+#endif /* OVIS_LDMS_STANDALONE */
 err:
 	return NULL;
 }

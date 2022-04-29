@@ -4,7 +4,10 @@ AM_CPPFLAGS = @OVIS_INCLUDE_ABS@
 AM_LDFLAGS = @OVIS_LIB_ABS@
 
 zap_test_SOURCES = zap_test.c
-zap_test_LDADD = -lzap -lpthread -ldl
+zap_test_LDADD = $(top_builddir)/lib/src/zap/libzap.la -lpthread -ldl
+if ENABLE_STANDALONE
+zap_test_LDFLAGS = -static
+endif
 
 sbin_PROGRAMS += zap_test_big
 zap_test_big_SOURCES = zap_test_big.c

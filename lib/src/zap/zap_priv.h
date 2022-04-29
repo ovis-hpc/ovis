@@ -139,21 +139,7 @@ void __zap_assert_flag(int f);
  */
 /** Return 1 if it is compatible. Otherwise, 0 is returned. */
 
-int zap_version_check(struct zap_version *v)
-{
-	return ZAP_VERSION_EQUAL(*v);
-}
-
-const char *zap_ep_state_str[] = {
-	[ZAP_EP_INIT]        =  "ZAP_EP_INIT",
-	[ZAP_EP_LISTENING]   =  "ZAP_EP_LISTENING",
-	[ZAP_EP_ACCEPTING]   =  "ZAP_EP_ACCEPTING",
-	[ZAP_EP_CONNECTING]  =  "ZAP_EP_CONNECTING",
-	[ZAP_EP_CONNECTED]   =  "ZAP_EP_CONNECTED",
-	[ZAP_EP_PEER_CLOSE]  =  "ZAP_EP_PEER_CLOSE",
-	[ZAP_EP_CLOSE]       =  "ZAP_EP_CLOSE",
-	[ZAP_EP_ERROR]       =  "ZAP_EP_ERROR"
-};
+int zap_version_check(struct zap_version *v);
 
 const char *__zap_ep_state_str(zap_ep_state_t state);
 

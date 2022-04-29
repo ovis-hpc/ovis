@@ -65,6 +65,7 @@
 #include "coll/rbt.h"
 #include "ovis_util/os_util.h"
 
+#include "../zap_priv.h"
 #include "zap_sock.h"
 
 #define LOG__(ep, ...) do { \
@@ -2238,7 +2239,7 @@ zap_err_t z_sock_io_thread_ep_release(zap_io_thread_t t, zap_ep_t ep)
 	return rc ? ZAP_ERR_RESOURCE : ZAP_ERR_OK;
 }
 
-zap_err_t zap_transport_get(zap_t *pz, zap_log_fn_t log_fn,
+static zap_err_t __zap_transport_get(zap_t *pz, zap_log_fn_t log_fn,
 			    zap_mem_info_fn_t mem_info_fn)
 {
 	zap_t z;
@@ -2284,3 +2285,17 @@ zap_err_t zap_transport_get(zap_t *pz, zap_log_fn_t log_fn,
  err:
 	return ZAP_ERR_RESOURCE;
 }
+
+#if OVIS_LDMS_STANDALONE
+zap_err_t sock_zap_transport_get(zap_t *pz, zap_log_fn_t log_fn,
+			    zap_mem_info_fn_t mem_info_fn)
+{
+	return __zap_transport_get(pz, log_fn, mem_info_fn);
+}
+#else /* OVIS_LDMS_STANDALONE */
+zap_err_t zap_transport_get(zap_t *pz, zap_log_fn_t log_fn,
+			    zap_mem_info_fn_t mem_info_fn)
+{
+	return __zap_transport_get(pz, log_fn, mem_info_fn);
+}
+#endif /* OVIS_LDMS_STANDALONE */
