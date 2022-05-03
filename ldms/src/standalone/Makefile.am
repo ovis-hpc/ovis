@@ -33,11 +33,7 @@ ldmsd_LDADD = ../core/libldms.la ../ldmsd/libldmsd_request.la ../ldmsd/libldmsd_
 	$(LOVIS_EVENT) $(LOVIS_EV) -lpthread $(LOVIS_CTRL) -lm -ldl
 ldmsd_LDADD += $(LSAMPLER)/meminfo/libmeminfo.la \
 		$(LSAMPLER)/vmstat/libvmstat.la \
-		$(LSAMPLER)/loadavg/libloadavg.la
+		$(LSAMPLER)/loadavg/libloadavg.la \
+		$(LSAMPLER)/coretemp/libcoretemp.la
 ldmsd_CFLAGS = $(AM_CFLAGS)
 ldmsd_LDFLAGS = $(AM_LDFLAGS) -rdynamic -pthread -static
-
-if ENABLE_RABBITV3
-ldmsd_LDADD += -lrabbitmq
-ldmsd_CFLAGS += -DENABLE_RABBITMQ
-endif

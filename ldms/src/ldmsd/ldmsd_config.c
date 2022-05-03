@@ -110,6 +110,7 @@ struct ldmsd_plugin_cfg *ldmsd_get_plugin(char *name)
 extern struct ldmsd_plugin *meminfo_get_plugin(ldmsd_msg_log_f pf);
 extern struct ldmsd_plugin *vmstat_get_plugin(ldmsd_msg_log_f pf);
 extern struct ldmsd_plugin *loadavg_get_plugin(ldmsd_msg_log_f pf);
+extern struct ldmsd_plugin *coretemp_get_plugin(ldmsd_msg_log_f pf);
 #endif /* OVIS_LDMS_STANDALONE */
 struct ldmsd_plugin_cfg *new_plugin(char *plugin_name,
 				char *errstr, size_t errlen)
@@ -126,6 +127,8 @@ struct ldmsd_plugin_cfg *new_plugin(char *plugin_name,
 		pget = vmstat_get_plugin;
 	} else if (0 == strcmp(plugin_name, "loadavg")) {
 		pget = loadavg_get_plugin;
+	} else if (0 == strcmp(plugin_name, "coretemp")) {
+		pget = coretemp_get_plugin;
 	} else {
 		ldmsd_log(LDMSD_LERROR, "Plugin %s not supported.\n", plugin_name);
 		snprintf(errstr, errlen, "Plugin %s not supported.\n", plugin_name);
