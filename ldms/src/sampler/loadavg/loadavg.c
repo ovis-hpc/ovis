@@ -452,7 +452,11 @@ static struct ldmsd_sampler loadavg_plugin = {
 	.sample = sample,
 };
 
+#if OVIS_LDMS_STANDALONE
+struct ldmsd_plugin *loadavg_get_plugin(ldmsd_msg_log_f pf)
+#else /* OVIS_LDMS_STANDALONE */
 struct ldmsd_plugin *get_plugin(ldmsd_msg_log_f pf)
+#endif /* OVIS_LDMS_STANDALONE */
 {
 	msglog = pf;
 	set = NULL;

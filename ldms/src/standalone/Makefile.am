@@ -32,7 +32,8 @@ ldmsd_LDADD = ../core/libldms.la ../ldmsd/libldmsd_request.la ../ldmsd/libldmsd_
 	$(LZAP) $(LMMALLOC) $(LOVIS_UTIL) $(LCOLL) $(LJSON_UTIL) \
 	$(LOVIS_EVENT) $(LOVIS_EV) -lpthread $(LOVIS_CTRL) -lm -ldl
 ldmsd_LDADD += $(LSAMPLER)/meminfo/libmeminfo.la \
-			  $(LSAMPLER)/vmstat/libvmstat.la
+		$(LSAMPLER)/vmstat/libvmstat.la \
+		$(LSAMPLER)/loadavg/libloadavg.la
 ldmsd_CFLAGS = $(AM_CFLAGS)
 ldmsd_LDFLAGS = $(AM_LDFLAGS) -rdynamic -pthread -static
 
