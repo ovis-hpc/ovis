@@ -2279,6 +2279,27 @@ int main(int argc, char *argv[])
 		}
 	}
 
+#if OVIS_LDMS_STANDALONE
+#define DEFAULT_CONF_NAME "sampler.conf"
+	char auto_conf_path[PATH_MAX];
+	if (TAILQ_EMPTY(&cfgfile_list)) {
+		char *exe_path = realpath("/proc/self/exe", NULL);
+		char *exe_dir = dirname(exe_path);
+		snprintf(auto_conf_path, PATH_MAX, "%s/%s", exe_dir, DEFAULT_CONF_NAME);
+		FILE *cf = fopen(auto_conf_path, "r");
+		if (cf) {
+			cpath = ldmsd_str_ent_new(auto_conf_path);
+			TAILQ_INSERT_TAIL(&cfgfile_list, cpath, entry);
+		} else {
+			auto_conf_path[0] = '\0';
+		}
+		free(exe_path);
+	} else {
+		auto_conf_path[0] = '\0';
+	}
+#endif /* OVIS_LDMS_STANDALONE */
+
+
 	int lln;
 	while ((cpath = TAILQ_FIRST(&cfgfile_list))) {
 		lln = -1;
@@ -2449,6 +2470,19 @@ int main(int argc, char *argv[])
 		if (ret)
 			cleanup(7, "error listening on transport");
 	}
+
+#if OVIS_LDMS_STANDALONE
+	if (auto_conf_path[0] != '\0') {
+		ret = process_config_file(auto_conf_path, &lln, 1);
+		if (ret) {
+			char errstr[PATH_MAX + 128];
+			snprintf(errstr, sizeof(errstr),
+				 "Error %d processing configuration file '%s'",
+				 ret, auto_conf_path);
+			cleanup(ret, errstr);
+		}
+	}
+#endif /* OVIS_LDMS_STANDALONE */
 
 	/* Process configuration files */
 	int has_config_file = 0;
