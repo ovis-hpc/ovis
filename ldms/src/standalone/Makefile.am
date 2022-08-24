@@ -27,7 +27,8 @@ ldmsd_SOURCES = $(LLDMSD)/ldmsd.c $(LLDMSD)/ldmsd_config.c \
 	$(LLDMSD)/ldmsd_request.h \
 	$(LLDMSD)/ldmsd_cfgobj.c $(LLDMSD)/ldmsd_prdcr.c $(LLDMSD)/ldmsd_updtr.c $(LLDMSD)/ldmsd_strgp.c \
 	$(LLDMSD)/ldmsd_failover.c $(LLDMSD)/ldmsd_group.c $(LLDMSD)/ldmsd_auth.c \
-	$(LLDMSD)/ldmsd_event.c $(LLDMSD)/ldmsd_event.h
+	$(LLDMSD)/ldmsd_event.c $(LLDMSD)/ldmsd_event.h \
+	$(LLDMSD)/ldmsd_decomp.c
 ldmsd_LDADD = ../core/libldms.la ../ldmsd/libldmsd_request.la ../ldmsd/libldmsd_stream.la \
 	$(LZAP) $(LMMALLOC) $(LOVIS_UTIL) $(LCOLL) $(LJSON_UTIL) \
 	$(LOVIS_EVENT) $(LOVIS_EV) -lpthread $(LOVIS_CTRL) -lm -ldl
