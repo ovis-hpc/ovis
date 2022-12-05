@@ -11,7 +11,7 @@ AM_CONFIG_HEADER(config.h)
 AC_REQUIRE_AUX_FILE([tap-driver.sh])
 AC_PROG_CC
 gl_EARLY
-AM_INIT_AUTOMAKE([foreign tar-pax])
+AM_INIT_AUTOMAKE([foreign tar-pax subdir-objects])
 
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 AX_PREFIX_CONFIG_H_G(ovis-ldms-config.h,,,[
@@ -298,8 +298,18 @@ OPTION_DEFAULT_ENABLE([synthetic], [ENABLE_SYNTHETIC])
 OPTION_DEFAULT_ENABLE([varset], [ENABLE_VARSET])
 OPTION_DEFAULT_ENABLE([lnet_stats], [ENABLE_LNET_STATS])
 OPTION_DEFAULT_ENABLE([meminfo], [ENABLE_MEMINFO])
+meminfo=0
+if test "$disable_meminfo" != "yes"; then
+	meminfo=1
+fi
+AC_DEFINE_UNQUOTED([MEMINFO],[$meminfo],[Link standalone executable file with meminfo (1) or not (0)])
 OPTION_DEFAULT_DISABLE([gpumetrics], [ENABLE_GPU_METRICS])
 OPTION_DEFAULT_ENABLE([coretemp], [ENABLE_CORETEMP])
+coretemp=0
+if test "$disable_coretemp" != "yes"; then
+	coretemp=1
+fi
+AC_DEFINE_UNQUOTED([CORETEMP],[$coretemp],[Link standalone executable file with coretemp (1) or not (0)])
 OPTION_DEFAULT_DISABLE([filesingle], [ENABLE_FILESINGLE])
 OPTION_DEFAULT_DISABLE([msr_interlagos], [ENABLE_MSR_INTERLAGOS])
 OPTION_DEFAULT_ENABLE([array_example], [ENABLE_ARRAY_EXAMPLE])
@@ -326,7 +336,17 @@ OPTION_DEFAULT_ENABLE([cray_power_sampler], [ENABLE_CRAY_POWER_SAMPLER])
 dnl cray_power_sampler won't build with --disable-tsampler
 
 OPTION_DEFAULT_ENABLE([loadavg], [ENABLE_LOADAVG])
+loadavg=0
+if test "$disable_loadavg" != "yes"; then
+	loadavg=1
+fi
+AC_DEFINE_UNQUOTED([LOADAVG],[$loadavg],[Link standalone executable file with loadavg (1) or not (0)])
 OPTION_DEFAULT_ENABLE([vmstat], [ENABLE_VMSTAT])
+vmstat=0
+if test "$disable_vmstat" != "yes"; then
+	vmstat=1
+fi
+AC_DEFINE_UNQUOTED([VMSTAT],[$vmstat],[Link standalone executable file with vmstat (1) or not (0)])
 OPTION_DEFAULT_ENABLE([procdiskstats], [ENABLE_PROCDISKSTATS])
 OPTION_DEFAULT_DISABLE([cray_system_sampler], [ENABLE_CRAY_SYSTEM_SAMPLER])
 dnl spaceless names in the cray_system_sampler. Default is with spaces for reverse compatibility

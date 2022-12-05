@@ -107,29 +107,46 @@ struct ldmsd_plugin_cfg *ldmsd_get_plugin(char *name)
 }
 
 #if OVIS_LDMS_STANDALONE
+#if OVIS_LDMS_MEMINFO
 extern struct ldmsd_plugin *meminfo_get_plugin(ldmsd_msg_log_f pf);
+#endif /* OVIS_LDMS_MEMINFO */
+#if OVIS_LDMS_VMSTAT
 extern struct ldmsd_plugin *vmstat_get_plugin(ldmsd_msg_log_f pf);
+#endif /* OVIS_LDMS_VMSTAT */
+#if OVIS_LDMS_LOADAVG
 extern struct ldmsd_plugin *loadavg_get_plugin(ldmsd_msg_log_f pf);
+#endif /* OVIS_LDMS_LOADAVG */
+#if OVIS_LDMS_CORETEMP
 extern struct ldmsd_plugin *coretemp_get_plugin(ldmsd_msg_log_f pf);
+#endif /* OVIS_LDMS_CORETEMP */
 #endif /* OVIS_LDMS_STANDALONE */
 struct ldmsd_plugin_cfg *new_plugin(char *plugin_name,
 				char *errstr, size_t errlen)
 {
-	ldmsd_plugin_get_f pget;
+	ldmsd_plugin_get_f pget = NULL;
 	struct ldmsd_plugin *lpi;
 	struct ldmsd_plugin_cfg *pi = NULL;
 	void *d = NULL;
 	char library_name[LDMSD_PLUGIN_LIBPATH_MAX];
 #if OVIS_LDMS_STANDALONE
 	if (0 == strcmp(plugin_name, "meminfo")) {
+#if OVIS_LDMS_MEMINFO
 		pget = meminfo_get_plugin;
+#endif /* OVIS_LDMS_MEMINFO */
 	} else if (0 == strcmp(plugin_name, "vmstat")) {
+#if OVIS_LDMS_VMSTAT
 		pget = vmstat_get_plugin;
+#endif /* OVIS_LDMS_VMSTAT */
 	} else if (0 == strcmp(plugin_name, "loadavg")) {
+#if OVIS_LDMS_LOADAVG
 		pget = loadavg_get_plugin;
+#endif /* OVIS_LDMS_LOADAVG */
 	} else if (0 == strcmp(plugin_name, "coretemp")) {
+#if OVIS_LDMS_CORETEMP
 		pget = coretemp_get_plugin;
-	} else {
+#endif /* OVIS_LDMS_CORETEMP */
+	}
+	if (!pget) {
 		ldmsd_log(LDMSD_LERROR, "Plugin %s not supported.\n", plugin_name);
 		snprintf(errstr, errlen, "Plugin %s not supported.\n", plugin_name);
 		goto err;

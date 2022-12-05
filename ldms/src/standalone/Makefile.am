@@ -32,9 +32,21 @@ ldmsd_SOURCES = $(LLDMSD)/ldmsd.c $(LLDMSD)/ldmsd_config.c \
 ldmsd_LDADD = ../core/libldms.la ../ldmsd/libldmsd_request.la ../ldmsd/libldmsd_stream.la \
 	$(LZAP) $(LMMALLOC) $(LOVIS_UTIL) $(LCOLL) $(LJSON_UTIL) \
 	$(LOVIS_EVENT) $(LOVIS_EV) -lpthread $(LOVIS_CTRL) -lm -ldl
-ldmsd_LDADD += $(LSAMPLER)/meminfo/libmeminfo.la \
-		$(LSAMPLER)/vmstat/libvmstat.la \
-		$(LSAMPLER)/loadavg/libloadavg.la \
-		$(LSAMPLER)/coretemp/libcoretemp.la
+if ENABLE_MEMINFO
+ldmsd_LDADD += $(LSAMPLER)/meminfo/libmeminfo.la
+endif
+
+if ENABLE_VMSTAT
+ldmsd_LDADD += $(LSAMPLER)/vmstat/libvmstat.la
+endif
+
+if ENABLE_LOADAVG
+ldmsd_LDADD += $(LSAMPLER)/loadavg/libloadavg.la
+endif
+
+if ENABLE_CORETEMP
+ldmsd_LDADD += $(LSAMPLER)/coretemp/libcoretemp.la
+endif
+
 ldmsd_CFLAGS = $(AM_CFLAGS)
 ldmsd_LDFLAGS = $(AM_LDFLAGS) -rdynamic -pthread -static
