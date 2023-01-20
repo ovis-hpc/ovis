@@ -1345,6 +1345,8 @@ store(ldmsd_store_handle_t _sh, ldms_set_t set,
 			       "The job_id is missing from the metric set/schema.\n");
 		assert(si->ts_attr);
 	}
+	pthread_mutex_unlock(&si->lock);
+
 	if (timeout > 0) {
 		clock_gettime(CLOCK_REALTIME, &now);
 		now.tv_sec += timeout;
@@ -1397,11 +1399,9 @@ store(ldmsd_store_handle_t _sh, ldms_set_t set,
 		LOG_(LDMSD_LERROR, "Error %d: %s at %s:%d\n", errno,
 		       STRERROR(errno), __FILE__, __LINE__);
 	}
-	pthread_mutex_unlock(&si->lock);
 	return rc;
 err:
 	sos_end_x(si->sos_handle->sos);
-	pthread_mutex_unlock(&si->lock);
 	return errno;
 }
 

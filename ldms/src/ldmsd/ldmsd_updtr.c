@@ -279,12 +279,12 @@ static void updtr_update_cb(ldms_t t, ldms_set_t set, int status, void *arg)
 	LIST_FOREACH(str_ref, &prd_set->strgp_list, entry) {
 		ldmsd_strgp_t strgp = str_ref->strgp;
 
-		ldmsd_strgp_lock(strgp);
+	//	ldmsd_strgp_lock(strgp);
 		clock_gettime(CLOCK_REALTIME, &start);
 		strgp->update_fn(strgp, prd_set);
 		clock_gettime(CLOCK_REALTIME, &end);
 		__stats(&strgp->stat, &start, &end);
-		ldmsd_strgp_unlock(strgp);
+	//	ldmsd_strgp_unlock(strgp);
 	}
 set_ready:
 	if ((status & LDMS_UPD_F_MORE) == 0)
