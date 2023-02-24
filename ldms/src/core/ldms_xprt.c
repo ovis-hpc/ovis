@@ -3113,6 +3113,7 @@ static void __ldms_xprt_priority_set(ldms_t x, int prio);
 static void __ldms_xprt_cred_get(ldms_t x, ldms_cred_t lcl, ldms_cred_t rmt);
 int __ldms_xprt_update(ldms_t x, struct ldms_set *set, ldms_update_cb_t cb, void *arg);
 int __ldms_xprt_get_threads(ldms_t x, pthread_t *out, int n);
+zap_ep_t __ldms_xprt_get_zap_ep(ldms_t x);
 
 static const struct ldms_xprt_ops_s ldms_xprt_ops = {
 	.connect      = __ldms_xprt_connect,
@@ -3139,6 +3140,7 @@ static const struct ldms_xprt_ops_s ldms_xprt_ops = {
 	.update       = __ldms_xprt_update,
 
 	.get_threads  = __ldms_xprt_get_threads,
+	.get_zap_ep   = __ldms_xprt_get_zap_ep,
 };
 
 void __ldms_xprt_init(struct ldms_xprt *x, const char *name, int is_active)
@@ -3199,7 +3201,19 @@ void ldms_xprt_cred_get(ldms_t x, ldms_cred_t lcl, ldms_cred_t rmt)
 	x->ops.cred_get(x, lcl, rmt);
 }
 
+<<<<<<< HEAD
 ldms_t ldms_xprt_new_with_auth(const char *xprt_name, const char *auth_name,
+=======
+/*
+ * This is the legacy ldms xprt interface. It is still used to create xprt for
+ * rails.
+ *
+ * The new ldms_xprt_new_with_auth() creates a rail with one xprt. Its
+ * implementation is in `ldms_rail.c`.
+ */
+ldms_t __ldms_xprt_new_with_auth(const char *xprt_name, ldms_log_fn_t log_fn,
+			       const char *auth_name,
+>>>>>>> 612ab656 (ldms_xprt_new_with_auth() returns a rail of 1 xprt)
 			       struct attr_value_list *auth_av_list)
 {
 	int ret = 0;
@@ -4160,6 +4174,16 @@ int __ldms_xprt_get_threads(ldms_t x, pthread_t *out, int n)
 		out[0] = zap_ep_thread(x->zap_ep);
 	}
 	return 1;
+}
+
+zap_ep_t __ldms_xprt_get_zap_ep(ldms_t x)
+{
+	return x->zap_ep;
+}
+
+zap_ep_t ldms_xprt_get_zap_ep(ldms_t x)
+{
+	return x->ops.get_zap_ep(x);
 }
 
 int ldms_xprt_get_threads(ldms_t x, pthread_t *out, int n)

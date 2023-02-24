@@ -96,6 +96,7 @@ static void __rail_priority_set(ldms_t _r, int prio);
 static void __rail_cred_get(ldms_t _r, ldms_cred_t lcl, ldms_cred_t rmt);
 static int __rail_update(ldms_t _r, struct ldms_set *set, ldms_update_cb_t cb, void *arg);
 static int __rail_get_threads(ldms_t _r, pthread_t *out, int n);
+zap_ep_t __rail_get_zap_ep(ldms_t x);
 
 static struct ldms_xprt_ops_s __rail_ops = {
 	.connect      = __rail_connect,
@@ -121,6 +122,7 @@ static struct ldms_xprt_ops_s __rail_ops = {
 
 	.update       = __rail_update,
 	.get_threads  = __rail_get_threads,
+	.get_zap_ep   = __rail_get_zap_ep,
 };
 
 static int __rail_id_cmp(void *k, const void *tk)
@@ -219,7 +221,7 @@ ldms_t ldms_xprt_rail_new(const char *xprt_name, ldms_log_fn_t log_fn,
 		r->eps[i].remote_is_rail = -1;
 	}
 
-	r->eps[0].ep = ldms_xprt_new_with_auth(r->name, log_fn, r->auth_name, auth_av_list);
+	r->eps[0].ep = __ldms_xprt_new_with_auth(r->name, log_fn, r->auth_name, auth_av_list);
 	if (!r->eps[0].ep)
 		goto err_1;
 	ldms_xprt_ctxt_set(r->eps[0].ep, &r->eps[0], NULL);
@@ -238,6 +240,15 @@ ldms_t ldms_xprt_rail_new(const char *xprt_name, ldms_log_fn_t log_fn,
 	free(r);
  err_0:
 	return NULL;
+}
+
+ldms_t ldms_xprt_new_with_auth(const char *xprt_name, ldms_log_fn_t log_fn,
+			       const char *auth_name,
+			       struct attr_value_list *auth_av_list)
+{
+	return ldms_xprt_rail_new(xprt_name, log_fn, 1,
+			__RAIL_UNLIMITED, __RAIL_UNLIMITED,
+			auth_name,  auth_av_list);
 }
 
 /* r->mutex MUST be held */
@@ -736,7 +747,7 @@ static int __rail_connect(ldms_t _r, struct sockaddr *sa, socklen_t sa_len,
 	for (i = 0; i < r->n_eps; i++) {
 		rep = &r->eps[i];
 		if (i) {
-			x = ldms_xprt_new_with_auth(r->name, r->log, r->auth_name, r->auth_av_list);
+			x = __ldms_xprt_new_with_auth(r->name, r->log, r->auth_name, r->auth_av_list);
 		} else {
 			x = r->eps[i].ep;
 		}
@@ -1182,4 +1193,12 @@ int ldms_xprt_rail_send_credit_get(ldms_t _r, uint64_t *credits, int n)
 		credits[i] = r->eps[i].send_credit;
 	}
 	return 0;
+}
+
+zap_ep_t __rail_get_zap_ep(ldms_t x)
+{
+	ldms_rail_t r = (void*)x;
+	if (!r->eps[0].ep)
+		return NULL;
+	return r->eps[0].ep->zap_ep;
 }
