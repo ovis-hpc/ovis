@@ -50,7 +50,6 @@
 #define __LDMSD_EVENT_H__
 #include "ovis_json/ovis_json.h"
 #include "ovis_ev/ev.h"
-#include "ldmsd_stream.h"
 #include "ldmsd_request.h"
 #include "ldmsd.h"
 

@@ -196,13 +196,6 @@ char * ldmsd_stream_client_dump();
  *         NULL if there is an error. \c errno is also set in this case.
  */
 char *ldmsd_stream_dir_dump();
-
-/**
- * \brief Remove a publisher from all streams
- *
- * \param p_name   Publisher name
- */
-void ldmsd_stream_publisher_remove(const char *p_name);
 #ifdef __cplusplus
 }
 #endif
