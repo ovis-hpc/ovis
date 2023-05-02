@@ -69,6 +69,11 @@
 
 #include "ldms_private.h"
 
+extern ovis_log_t xlog;
+#define RAIL_LOG(fmt, ...) do { \
+	ovis_log(xlog, OVIS_LERROR, fmt, ## __VA_ARGS__); \
+} while (0);
+
 static int __rail_connect(ldms_t _r, struct sockaddr *sa, socklen_t sa_len,
 		ldms_event_cb_t cb, void *cb_arg);
 static int __rail_is_connected(ldms_t _r);
@@ -172,7 +177,7 @@ uint64_t rail_gn = 1;
 int __stream_buf_cmp(void *tree_key, const void *key);
 int __str_rbn_cmp(void *tree_key, const void *key);
 
-ldms_t ldms_xprt_rail_new(const char *xprt_name, ldms_log_fn_t log_fn,
+ldms_t ldms_xprt_rail_new(const char *xprt_name,
 			  int n, int64_t recv_limit, int32_t rate_limit,
 			  const char *auth_name,
 			  struct attr_value_list *auth_av_list)
@@ -207,7 +212,6 @@ ldms_t ldms_xprt_rail_new(const char *xprt_name, ldms_log_fn_t log_fn,
 	r->n_eps = n;
 	r->recv_limit = recv_limit;
 	r->rate_limit = rate_limit;
-	r->log = log_fn;
 	rbt_init(&r->stream_client_rbt, __str_rbn_cmp);
 	snprintf(r->name, sizeof(r->name), "%s", xprt_name);
 	snprintf(r->auth_name, sizeof(r->auth_name), "%s", auth_name);
@@ -226,7 +230,7 @@ ldms_t ldms_xprt_rail_new(const char *xprt_name, ldms_log_fn_t log_fn,
 		rbt_init(&r->eps[i].sbuf_rbt, __stream_buf_cmp);
 	}
 
-	r->eps[0].ep = __ldms_xprt_new_with_auth(r->name, log_fn, r->auth_name, auth_av_list);
+	r->eps[0].ep = __ldms_xprt_new_with_auth(r->name, r->auth_name, auth_av_list);
 	if (!r->eps[0].ep)
 		goto err_1;
 	ldms_xprt_ctxt_set(r->eps[0].ep, &r->eps[0], NULL);
@@ -248,11 +252,11 @@ ldms_t ldms_xprt_rail_new(const char *xprt_name, ldms_log_fn_t log_fn,
 	return NULL;
 }
 
-ldms_t ldms_xprt_new_with_auth(const char *xprt_name, ldms_log_fn_t log_fn,
+ldms_t ldms_xprt_new_with_auth(const char *xprt_name,
 			       const char *auth_name,
 			       struct attr_value_list *auth_av_list)
 {
-	return ldms_xprt_rail_new(xprt_name, log_fn, 1,
+	return ldms_xprt_rail_new(xprt_name, 1,
 			__RAIL_UNLIMITED, __RAIL_UNLIMITED,
 			auth_name,  auth_av_list);
 }
@@ -500,7 +504,7 @@ void __rail_cb(ldms_t x, ldms_xprt_event_t e, void *cb_arg)
 /* These are implemented in ldms_xprt.c */
 void __ldms_xprt_resource_free(struct ldms_xprt *x);
 void __ldms_xprt_conn_msg_init(ldms_t _x, struct ldms_conn_msg *msg);
-void __ldms_xprt_init(struct ldms_xprt *x, const char *name, int is_active, ldms_log_fn_t log_fn);
+void __ldms_xprt_init(struct ldms_xprt *x, const char *name, int is_active);
 void ldms_zap_auto_cb(zap_ep_t zep, zap_event_t ev);
 
 #define _MIN(a, b) ( (a)<(b)?(a):(b) )
@@ -562,7 +566,6 @@ void __rail_zap_handle_conn_req(zap_ep_t zep, zap_event_t ev)
 	if (!rbn) {
 		const char *xprt_name;
 		const char *auth_name;
-		void *log_fn;
 		int64_t recv_limit;
 		int32_t rate_limit;
 		ldms_event_cb_t cb;
@@ -570,7 +573,6 @@ void __rail_zap_handle_conn_req(zap_ep_t zep, zap_event_t ev)
 		if (lr) {
 			xprt_name = lr->name;
 			auth_name = lr->auth_name;
-			log_fn = lr->log;
 			recv_limit = lr->recv_limit;
 			rate_limit = lr->rate_limit;
 			cb = lr->event_cb;
@@ -578,13 +580,12 @@ void __rail_zap_handle_conn_req(zap_ep_t zep, zap_event_t ev)
 		} else {
 			xprt_name = lx->name;
 			auth_name = lx->auth?lx->auth->plugin->name:NULL;
-			log_fn = lx->log;
 			recv_limit = __RAIL_UNLIMITED;
 			rate_limit = __RAIL_UNLIMITED;
 			cb = lx->event_cb;
 			cb_arg = lx->event_cb_arg;
 		}
-		r = (void*)ldms_xprt_rail_new(xprt_name, log_fn, m->n_eps,
+		r = (void*)ldms_xprt_rail_new(xprt_name, m->n_eps,
 				recv_limit, rate_limit, auth_name, NULL);
 		if (!r) {
 			snprintf(rej_msg, sizeof(rej_msg), "passive rail create error: %d", errno);
@@ -647,15 +648,15 @@ void __rail_zap_handle_conn_req(zap_ep_t zep, zap_event_t ev)
 	/* create passive-side endpoint */
 	struct ldms_xprt *_x = calloc(1, sizeof(*_x));
 	if (!_x) {
-		r->log("ERROR: Cannot create new ldms_xprt for connection"
-				" from %s.\n", name);
+		RAIL_LOG("ERROR: Cannot create new ldms_xprt for connection"
+			 " from %s.\n", name);
 		snprintf(rej_msg, sizeof(rej_msg),
 			"Cannot create new ldms_xprt: Not enough memory");
 		pthread_mutex_unlock(&r->mutex);
 		goto err_0;
 	}
 	r->connecting_eps++;
-	__ldms_xprt_init(_x, r->name, 0, r->log);
+	__ldms_xprt_init(_x, r->name, 0);
 	_x->zap = lx->zap;
 	_x->zap_ep = zep;
 	_x->max_msg = zap_max_msg(lx->zap);
@@ -681,7 +682,6 @@ void __rail_zap_handle_conn_req(zap_ep_t zep, zap_event_t ev)
 	rc = ldms_xprt_auth_bind(_x, auth);
 	if (rc)
 		goto err_2;
-
 	__ldms_rail_conn_msg_init(r, m->idx, &msg);
 
 	/* Take a 'connect' reference. Dropped in ldms_xprt_close() */
@@ -690,7 +690,7 @@ void __rail_zap_handle_conn_req(zap_ep_t zep, zap_event_t ev)
 	ref_get(&r->ref, "ldms_accepting");
 	zerr = zap_accept2(zep, ldms_zap_auto_cb, (void*)&msg, sizeof(msg), m->idx);
 	if (zerr) {
-		r->log("ERROR: %d accepting connection from %s.\n", zerr, name);
+		RAIL_LOG("ERROR: %d accepting connection from %s.\n", zerr, name);
 		goto err_3;
 	}
 
@@ -764,7 +764,7 @@ static int __rail_connect(ldms_t _r, struct sockaddr *sa, socklen_t sa_len,
 	for (i = 0; i < r->n_eps; i++) {
 		rep = &r->eps[i];
 		if (i) {
-			x = __ldms_xprt_new_with_auth(r->name, r->log, r->auth_name, r->auth_av_list);
+			x = __ldms_xprt_new_with_auth(r->name, r->auth_name, r->auth_av_list);
 		} else {
 			x = r->eps[i].ep;
 		}

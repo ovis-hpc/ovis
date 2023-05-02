@@ -803,8 +803,9 @@ static zap_io_thread_t __zap_least_busy_thread(zap_t z, zap_ep_t ep, struct zap_
 
 	clock_gettime(CLOCK_REALTIME, &now);
 	pthread_mutex_lock(&z->_io_mutex);
+
 	/* Reap idle threads */
-	LIST_FOREACH(_t, &z->_io_threads, _entry)
+	LIST_FOREACH(_t, &p->_io_threads, _entry)
 	{
 		if (0 == _t->_n_ep) {
 			t = _t;

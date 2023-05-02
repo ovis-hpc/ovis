@@ -1673,8 +1673,9 @@ static int config_add_stream(struct attr_value_list *avl)
 			rc = EINVAL;
 			goto err;
 		}
-		c->ldms = ldms_xprt_new_with_auth(c->xprt, ldmsd_lerror,
-				c->auth_dom->plugin, c->auth_dom->attrs);
+		c->ldms = ldms_xprt_new_with_auth(c->xprt,
+						  c->auth_dom->plugin,
+						  c->auth_dom->attrs);
 		if (!c->ldms) {
 			rc = errno;
 			goto err;

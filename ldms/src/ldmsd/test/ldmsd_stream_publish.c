@@ -175,7 +175,6 @@ int main(int argc, char **argv)
 
 	int rc;
 	ldms_t ldms = NULL;
-	if (stream_new || line_mode) {
 
 	/* Create a transport endpoint */
 	ldms = ldms_xprt_new_with_auth(xprt, auth, NULL);

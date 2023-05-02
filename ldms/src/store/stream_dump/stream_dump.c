@@ -153,7 +153,7 @@ static int __is_regex(const char *s)
 int __stream_cb(ldms_stream_event_t ev, void *cb_arg)
 {
 	struct __client_s *cli = cb_arg;
-	int tid = gettid();
+	int tid = (pid_t) syscall (SYS_gettid);
 	if (ev->type != LDMS_STREAM_EVENT_RECV) /* ignore other events */
 		return 0;
 	fprintf(cli->f, "\x1%d: %.*s\n", tid, ev->recv.data_len, ev->recv.data);

@@ -264,7 +264,7 @@ cdef extern from "ldms.h" nogil:
     ldms_t ldms_xprt_new_with_auth(const char *xprt_name,
                                    const char *auth_name,
                                    attr_value_list *auth_av_list)
-    ldms_t ldms_xprt_rail_new(const char *xprt_name, ldms_log_fn_t log_fn,
+    ldms_t ldms_xprt_rail_new(const char *xprt_name,
 			  int n, int64_t recv_limit, int32_t rate_limit,
 			  const char *auth_name,
 			  attr_value_list *auth_av_list)
@@ -792,11 +792,13 @@ cdef extern from "ldms.h" nogil:
 
 cdef extern from "zap/zap.h" nogil:
     struct zap_thrstat_result_entry:
-        char     *name
-        double   sample_count
-        double   sample_rate
-        double   utilization
-        int      pool_idx
+        char *name
+        double sample_count
+        double sample_rate
+        double utilization
+        uint64_t n_eps
+        uint64_t sq_sz
+        int pool_idx
         uint64_t thread_id
     struct zap_thrstat_result:
         int count

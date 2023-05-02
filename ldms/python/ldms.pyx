@@ -3159,7 +3159,7 @@ cdef class Xprt(object):
                                   .format(ERRNO_SYM(rc)))
         self.rail_eps = rail_eps
         if rail_eps > 0:
-            self.xprt = ldms_xprt_rail_new(BYTES(name), xprt_log, rail_eps,
+            self.xprt = ldms_xprt_rail_new(BYTES(name), rail_eps,
                                         rail_recv_limit, rail_rate_limit,
                                         BYTES(auth), avl)
         else:

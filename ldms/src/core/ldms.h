@@ -645,7 +645,6 @@ ldms_t ldms_xprt_new_with_auth(const char *xprt_name,
  * \brief Create a new LDMS Rail handle.
  *
  * \param xprt_name The transport type name string.
- * \param log_fn The log function.
  * \param n The number of endpoints in the rail.
  * \param recv_limit Our recv buffer limit in bytes, -1 for unlimited.
  * \param rate_limit Our transfer rate limit in bytes per second.
@@ -655,7 +654,7 @@ ldms_t ldms_xprt_new_with_auth(const char *xprt_name,
  * \retval rail The rail handle, if there is no error.
  * \retval NULL If there is an error. \c errno is set to describe the error.
  */
-ldms_t ldms_xprt_rail_new(const char *xprt_name, ldms_log_fn_t log_fn,
+ldms_t ldms_xprt_rail_new(const char *xprt_name,
 			  int n, int64_t recv_limit, int32_t rate_limit,
 			  const char *auth_name,
 			  struct attr_value_list *auth_av_list);

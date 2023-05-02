@@ -809,8 +809,9 @@ static void process_dir_request(struct ldms_xprt *x, struct ldms_request *req)
 		zerr = zap_send(x->zap_ep, reply, cnt + hdrlen);
 		if (zerr != ZAP_ERR_OK) {
 			x->zerrno = zerr;
-			XPRT_LOG(x, OVIS_LERROR, "%s: x %p: zap_send synchronous error. "
-					"'%s'\n", __FUNCTION__, x, zap_err_str(zerr));
+			XPRT_LOG(x, OVIS_LERROR,
+				 "%s: x %p: zap_send synchronous error. '%s'\n",
+				 __FUNCTION__, x, zap_err_str(zerr));
 		}
 		free(reply);
 		return;
@@ -3216,9 +3217,6 @@ void ldms_xprt_cred_get(ldms_t x, ldms_cred_t lcl, ldms_cred_t rmt)
 	x->ops.cred_get(x, lcl, rmt);
 }
 
-<<<<<<< HEAD
-ldms_t ldms_xprt_new_with_auth(const char *xprt_name, const char *auth_name,
-=======
 /*
  * This is the legacy ldms xprt interface. It is still used to create xprt for
  * rails.
@@ -3226,10 +3224,8 @@ ldms_t ldms_xprt_new_with_auth(const char *xprt_name, const char *auth_name,
  * The new ldms_xprt_new_with_auth() creates a rail with one xprt. Its
  * implementation is in `ldms_rail.c`.
  */
-ldms_t __ldms_xprt_new_with_auth(const char *xprt_name, ldms_log_fn_t log_fn,
-			       const char *auth_name,
->>>>>>> 612ab656 (ldms_xprt_new_with_auth() returns a rail of 1 xprt)
-			       struct attr_value_list *auth_av_list)
+ldms_t __ldms_xprt_new_with_auth(const char *xprt_name, const char *auth_name,
+				 struct attr_value_list *auth_av_list)
 {
 	int ret = 0;
 	ldms_auth_plugin_t auth_plugin;
@@ -3239,7 +3235,7 @@ ldms_t __ldms_xprt_new_with_auth(const char *xprt_name, ldms_log_fn_t log_fn,
 		ret = ENOMEM;
 		goto err0;
 	}
-	__ldms_xprt_init(x, xprt_name, 1;
+	__ldms_xprt_init(x, xprt_name, 1);
 
 	ret = __ldms_xprt_zap_new(x, xprt_name);
 	if (ret)
@@ -3284,7 +3280,7 @@ const char *ldms_xprt_type_name(ldms_t x)
 
 ldms_t ldms_xprt_new(const char *name)
 {
-	return ldms_xprt_new_with_auth(name, "none");
+	return ldms_xprt_new_with_auth(name, "none", NULL);
 }
 
 size_t format_lookup_req(struct ldms_request *req, enum ldms_lookup_flags flags,

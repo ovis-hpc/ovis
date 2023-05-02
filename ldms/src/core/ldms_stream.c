@@ -624,7 +624,7 @@ int __check_cap_setuidgid(int *can_set_uid, int *can_set_gid)
 	uint32_t cap_setgid_mask = 1<<6;
 	uint32_t cap_setuid_mask = 1<<7;
 	cap_hdr.version = ver;
-	cap_hdr.pid = gettid(); /* self */
+	cap_hdr.pid = (pid_t) syscall (SYS_gettid);
 	rc = syscall(SYS_capget, &cap_hdr, &cap_data);
 	if (rc) {
 		if (errno == EINVAL && cap_hdr.version != ver) {
