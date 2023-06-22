@@ -1878,7 +1878,7 @@ static int init_once()
 	z_key_tree.comparator = z_rbn_cmp;
 	pthread_mutex_init(&z_key_tree_mutex, NULL);
 
-	zslog = ovis_log_register("xprt.zap.sock", "Messages for zap_sock");
+	zslog = ovis_log_register("zap.sock", "Messages for zap_sock");
 	if (!zslog) {
 		ovis_log(NULL, OVIS_LWARN, "Failed to create zap_sock's "
 				"log subsystem. Error %d.\n", errno);

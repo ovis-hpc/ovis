@@ -2753,7 +2753,7 @@ static int init_once()
 
 	init_complete = 1;
 
-	zflog = ovis_log_register("xprt.zap.fabric", "Messages for zap_fabric");
+	zflog = ovis_log_register("zap.fabric", "Messages for zap_fabric");
 	if (!zflog) {
 		ovis_log(NULL, OVIS_LWARN, "Failed to create zap_fabric's "
 				"log subsystem. Error %d.\n", errno);

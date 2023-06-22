@@ -1921,13 +1921,13 @@ int ldmsd_process_cmd_line_arg(char opt, char *value)
 
 void log_init()
 {
-	prdcr_log = ovis_log_register("producer", "Messages for the producer infrastructure");
-	updtr_log = ovis_log_register("updater", "Messages for the updater infrastructure");
-	store_log = ovis_log_register("store", "Messages for the common storage infrastructure");
-	stream_log = ovis_log_register("stream", "Messages for the stream infrastructure");
-	config_log = ovis_log_register("config", "Messages for the configuration infrastructure");
-	sampler_log = ovis_log_register("sampler", "Messages for the common sampler infrastructure");
-	fo_log = ovis_log_register("failover", "Messages for the failover infrastructure");
+	prdcr_log = ovis_log_register("ldmsd.producer", "Messages for the producer infrastructure");
+	updtr_log = ovis_log_register("ldmsd.updater", "Messages for the updater infrastructure");
+	store_log = ovis_log_register("ldmsd.store", "Messages for the common storage infrastructure");
+	stream_log = ovis_log_register("ldmsd.stream", "Messages for the stream infrastructure");
+	config_log = ovis_log_register("ldmsd.config", "Messages for the configuration infrastructure");
+	sampler_log = ovis_log_register("ldmsd.sampler", "Messages for the common sampler infrastructure");
+	fo_log = ovis_log_register("ldmsd.failover", "Messages for the failover infrastructure");
 }
 
 int main(int argc, char *argv[])

@@ -1138,7 +1138,7 @@ static void zap_init(void)
 	TAILQ_INIT(&zap_ep_list);
 	pthread_mutex_init(&zap_ep_list_lock, 0);
 #endif /* _ZAP_EP_TRACK_ */
-	zlog = ovis_log_register("xprt.zap", "Messages for Zap");
+	zlog = ovis_log_register("zap", "Messages for Zap");
 	if (!zlog)
 		ovis_log(zlog, OVIS_LWARN, "Failed to create Zap's log subsystem.\n");
 	zap_io_busy = ZAP_ENV_DBL(ZAP_IO_BUSY);

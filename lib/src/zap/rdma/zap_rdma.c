@@ -2807,7 +2807,7 @@ static int init_once()
 			ZAP_RDMA_MAX_PD = num;
 	}
 
-	zrlog = ovis_log_register("xprt.zap.rdma", "Messages for zap_rdma");
+	zrlog = ovis_log_register("zap.rdma", "Messages for zap_rdma");
 	if (!zrlog) {
 		ovis_log(NULL, OVIS_LWARN, "Failed to create zap_rdma's "
 				"log subsystem. Error %d.\n", errno);
