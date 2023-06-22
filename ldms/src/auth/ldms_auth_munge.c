@@ -310,7 +310,7 @@ int __auth_munge_cred_get(ldms_auth_t auth, ldms_cred_t cred)
 ldms_auth_plugin_t __ldms_auth_plugin_get()
 {
 	if (!munge_log) {
-		munge_log = ovis_log_register("auth_munge",
+		munge_log = ovis_log_register("auth.munge",
 					      "Messages for ldms_auth_munge");
 		if (!munge_log) {
 			LOG_ERROR("Failed to register auth_munge's log. "

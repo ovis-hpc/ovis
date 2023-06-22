@@ -2105,7 +2105,7 @@ int init_once()
 {
 	int rc = ENOMEM;
 
-	zulog = ovis_log_register("xprt.zap.ugni", "Messages for zap_ugni");
+	zulog = ovis_log_register("zap.ugni", "Messages for zap_ugni");
 	if (!zulog) {
 		ovis_log(NULL, OVIS_LWARN, "Failed to create zap_ugni's "
 				"log subsystem. Error %d.\n", errno);
