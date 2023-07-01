@@ -356,6 +356,7 @@ static int stream_recv_cb(ldmsd_stream_client_t c, void *ctxt,
 			  const char *msg, size_t msg_len,
 			  json_entity_t entity)
 {
+	sos_obj_t obj = NULL;
 	int rc;
 	json_entity_t v, list, item;
 	double timestamp, duration;
@@ -503,12 +504,24 @@ static int stream_recv_cb(ldmsd_stream_client_t c, void *ctxt,
 			goto err;
 		timestamp = json_value_float(v);
 
-		sos_obj_t obj = sos_obj_new(app_schema);
+		struct timespec now;
+		clock_gettime(CLOCK_REALTIME, &now);
+                now.tv_sec += 10;
+                if (sos_begin_x_wait(sos, &now)) {
+                        msglog(LDMSD_LERROR,
+			       "Timeout attempting to open a transaction on the container '%s'.\n",
+			       sos_container_path(sos));
+                        rc = ETIMEDOUT;
+			goto err;
+		}
+
+		obj = sos_obj_new(app_schema);
 		if (!obj) {
 			rc = errno;
 			msglog(LDMSD_LERROR,
 			       "%s: Error %d creating Darshan data object.\n",
 			       darshan_stream_store.name, errno);
+			sos_end_x(sos);
 			goto err;
 		}
 
@@ -544,7 +557,8 @@ static int stream_recv_cb(ldmsd_stream_client_t c, void *ctxt,
 		sos_obj_index(obj);
 		sos_obj_put(obj);
 	}
-	rc = 0;
+	sos_end_x(sos);
+	return 0;
  err:
 	return rc;
 }

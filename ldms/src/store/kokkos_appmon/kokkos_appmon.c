@@ -386,12 +386,24 @@ static int stream_recv_cb(ldmsd_stream_client_t c, void *ctxt,
 			goto out;
 		total_kernel_time = json_value_float(v);
 
+		struct timespec now;
+		clock_gettime(CLOCK_REALTIME, &now);
+                now.tv_sec += 10;
+                if (sos_begin_x_wait(sos, &now)) {
+                        msglog(LDMSD_LERROR,
+			       "Timeout attempting to open a transaction on the container '%s'.\n",
+			       sos_container_path(sos));
+                        rc = ETIMEDOUT;
+			goto err;
+		}
+
 		sos_obj_t obj = sos_obj_new(app_schema);
 		if (!obj) {
 			rc = errno;
 			msglog(LDMSD_LERROR,
 			       "%s: Error %d creating Kokkos App Mon object.\n",
 			       kokkos_store.name, errno);
+			sos_end_x(sos);
 			goto out;
 		}
 		sos_obj_attr_by_id_set(obj, TIMESTAMP_ID, timestamp);
@@ -408,7 +420,8 @@ static int stream_recv_cb(ldmsd_stream_client_t c, void *ctxt,
 		sos_obj_index(obj);
 		sos_obj_put(obj);
 	}
-	rc = 0;
+	sos_end_x(sos);
+	return 0;
  out:
 	return rc;
 }
