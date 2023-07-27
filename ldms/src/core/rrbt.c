@@ -842,6 +842,8 @@ struct rrbn *rrbt_find(rrbt_t t, const void *key)
 	return NULL;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress"
 static struct rrbn *__rrbn_min(rrbt_t t, struct rrbn *n)
 {
 	for (; n && rrbn_ptr(t, n->left); n = rrbn_ptr(t, n->left));
@@ -853,6 +855,7 @@ static struct rrbn *__rrbn_max(rrbt_t t, struct rrbn *n)
 	for (; n && rrbn_ptr(t, n->right); n = rrbn_ptr(t, n->right));
 	return n;
 }
+#pragma GCC diagnostic pop
 
 /**
  * \brief Return the smallest (i.e leftmost) node in the RRBT.
