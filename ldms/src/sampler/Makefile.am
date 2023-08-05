@@ -34,10 +34,7 @@ SUBDIRS += lustre_client
 SUBDIRS += lustre_mdt
 SUBDIRS += lustre_ost
 SUBDIRS += lustre_mdc
-
-if HAVE_DCGM
-SUBDIRS += dcgm_sampler
-endif
+SUBDIRS += json
 
 if ENABLE_IBNET
 if HAVE_LIBIBMAD
