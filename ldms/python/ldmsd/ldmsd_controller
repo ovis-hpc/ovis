@@ -325,7 +325,8 @@ class LdmsdCmdParser(cmd.Cmd):
         """
         Load a plugin at the Aggregator/Producer
         Parameters:
-        name=     The plugin name
+        name=     The name of the plugin instance (user-defined, e.g. p0).
+        plugin=   The plugin to load (e.g. meminfo, store_sos).
         """
         arg = self.handle_args('load', arg)
         if arg:
@@ -1634,7 +1635,7 @@ class LdmsdCmdParser(cmd.Cmd):
         """
         Unload the plugin
         Parameters:
-        name=   The plugin name
+        name=   The name of the plugin instance to terminate.
         """
         arg = self.handle_args('term', arg)
         if arg:
@@ -1649,7 +1650,7 @@ class LdmsdCmdParser(cmd.Cmd):
         """
         Send a configuration command to the specified plugin.
         Parameters:
-        name=   The plugin name
+        name=   The plugin instance name
         ...     Plugin specific attr=value tuples
         """
         arg = self.handle_args('config', arg)
@@ -1665,7 +1666,7 @@ class LdmsdCmdParser(cmd.Cmd):
         """
         Start a sampler plugin
         Parameters:
-        name=     The plugin name
+        name=     The sampler plugin instance name
         interval= The sample interval in microseconds
         [offset=] Optional offset (shift) from the sample mark in microseconds.
                   Offset can be positive or negative with magnitude up to 1/2
@@ -1686,7 +1687,7 @@ class LdmsdCmdParser(cmd.Cmd):
         """
         Stop a sampler plugin
         Parameters:
-        name=     The plugin name
+        name=     The sampler plugin instance name
         """
         arg = self.handle_args('stop', arg)
         if arg:

@@ -2370,7 +2370,7 @@ static int prdcr_status_handler(ldmsd_req_ctxt_t reqc)
 out:
 	free(name);
 	if (prdcr)
-		ldmsd_prdcr_put(prdcr);
+		ldmsd_prdcr_put(prdcr, "find");
 	return rc;
 }
 
@@ -2595,8 +2595,8 @@ static int strgp_add_handler(ldmsd_req_ctxt_t reqc)
 	}
 
 
-	struct ldmsd_plugin_cfg *store;
-	store = ldmsd_get_plugin(plugin);
+	struct ldmsd_store *store;
+	store = (void*)ldmsd_get_plugin(plugin);
 	if (!store) {
 		reqc->errcode = ENOENT;
 		cnt = Snprintf(&reqc->line_buf, &reqc->line_len,
@@ -2622,8 +2622,7 @@ static int strgp_add_handler(ldmsd_req_ctxt_t reqc)
 			goto enomem;
 	}
 
-	__atomic_add_fetch(&store->ref_count, 1, __ATOMIC_SEQ_CST); /* Release in strgp_del */
-	strgp->store = store->store;
+	strgp->store = store; /* cfgobj ref is released in strgp_del */
 	strgp->plugin_name = strdup(plugin);
 	if (!strgp->plugin_name)
 		goto enomem;
@@ -3210,11 +3209,11 @@ static int strgp_status_handler(ldmsd_req_ctxt_t reqc)
 			free(name);
 			return 0;
 		}
-	}
-
-	/* Construct the json object of the strgp(s) */
-	if (strgp) {
 		rc = __strgp_status_json_obj(reqc, strgp, 0);
+		ldmsd_strgp_put(strgp, "find");
+		strgp = NULL;
+		if (rc)
+			goto out;
 	} else {
 		strgp_cnt = 0;
 		ldmsd_cfg_lock(LDMSD_CFGOBJ_STRGP);
@@ -3259,7 +3258,6 @@ static int strgp_status_handler(ldmsd_req_ctxt_t reqc)
 								LDMSD_REQ_EOM_F);
 out:
 	free(name);
-	ldmsd_strgp_put(strgp);
 	return rc;
 }
 
@@ -3846,10 +3844,9 @@ static int updtr_match_list_handler(ldmsd_req_ctxt_t reqc)
 			free(name);
 			return 0;
 		}
-	}
-
-	if (updtr) {
 		rc = __updtr_match_list_json_obj(reqc, updtr, 0);
+		ldmsd_updtr_put(updtr, "find");
+		updtr = NULL;
 		if (rc)
 			goto out;
 	} else {
@@ -3893,8 +3890,6 @@ static int updtr_match_list_handler(ldmsd_req_ctxt_t reqc)
 								LDMSD_REQ_EOM_F);
 out:
 	free(name);
-	if (updtr)
-		ldmsd_updtr_put(updtr);
 	return rc;
 }
 
@@ -4157,6 +4152,12 @@ static int updtr_status_handler(ldmsd_req_ctxt_t reqc)
 	name = ldmsd_req_attr_str_value_get_by_id(reqc, LDMSD_ATTR_NAME);
 	__dlog(DLOG_QUERY, "updtr_status %s%s\n",
 		name ? " name=" : "", name ? name : "");
+	reset_s = ldmsd_req_attr_str_value_get_by_id(reqc, LDMSD_ATTR_RESET);
+	if (reset_s) {
+		if (0 != strcasecmp(reset_s, "false"))
+			reset = 1;
+		free(reset_s);
+	}
 	if (name) {
 		updtr = ldmsd_updtr_find(name);
 		if (!updtr) {
@@ -4168,18 +4169,9 @@ static int updtr_status_handler(ldmsd_req_ctxt_t reqc)
 			free(name);
 			return 0;
 		}
-	}
-
-	reset_s = ldmsd_req_attr_str_value_get_by_id(reqc, LDMSD_ATTR_RESET);
-	if (reset_s) {
-		if (0 != strcasecmp(reset_s, "false"))
-			reset = 1;
-		free(reset_s);
-	}
-
-	/* Construct the json object of the updater(s) */
-	if (updtr) {
 		rc = __updtr_status_json_obj(reqc, updtr, 0, reset);
+		ldmsd_updtr_put(updtr, "find");
+		updtr = NULL;
 		if (rc)
 			goto out;
 	} else {
@@ -4226,8 +4218,6 @@ static int updtr_status_handler(ldmsd_req_ctxt_t reqc)
 								LDMSD_REQ_EOM_F);
 out:
 	free(name);
-	if (updtr)
-		ldmsd_updtr_put(updtr);
 	return rc;
 }
 
@@ -4309,6 +4299,8 @@ static int updtr_task_status_handler(ldmsd_req_ctxt_t reqc)
 			return 0;
 		}
 		rc = __updtr_task_tree_json_obj(reqc, updtr);
+		ldmsd_updtr_put(updtr, "find");
+		updtr = NULL;
 		if (rc)
 			goto err;
 	} else {
@@ -4361,8 +4353,6 @@ err:
 						"internal error", 15);
 out:
 	free(name);
-	if (updtr)
-		ldmsd_updtr_put(updtr);
 	return rc;
 }
 
@@ -4469,6 +4459,8 @@ static int prdcr_hint_tree_status_handler(ldmsd_req_ctxt_t reqc)
 		ldmsd_prdcr_lock(prdcr);
 		rc = __prdcr_hint_set_tree_json_obj(reqc, prdcr);
 		ldmsd_prdcr_unlock(prdcr);
+		ldmsd_prdcr_put(prdcr, "find");
+		prdcr = NULL;
 		if (rc)
 			goto intr_err;
 	} else {
@@ -4522,8 +4514,6 @@ intr_err:
 				"interval error", 14);
 out:
 	free(name);
-	if (prdcr)
-		ldmsd_prdcr_put(prdcr);
 	return rc;
 }
 
@@ -4877,7 +4867,8 @@ static char *plugn_state_str(enum ldmsd_plugin_type type)
 
 extern int ldmsd_start_sampler(char *plugin_name, char *interval, char *offset);
 extern int ldmsd_stop_sampler(char *plugin);
-extern int ldmsd_load_plugin(char *plugin_name, char *errstr, size_t errlen);
+extern int ldmsd_load_plugin(const char *inst_name, char *plugin_name,
+		      char *errstr, size_t errlen);
 extern int ldmsd_term_plugin(char *plugin_name);
 extern int ldmsd_config_plugin(char *plugin_name,
 			struct attr_value_list *_av_list,
@@ -4994,36 +4985,52 @@ send_reply:
 
 int __plugn_status_json_obj(ldmsd_req_ctxt_t reqc)
 {
-	extern struct plugin_list plugin_list;
-	struct ldmsd_plugin_cfg *p;
+	struct ldmsd_plugin *p;
 	int rc, count;
+	struct ldmsd_cfgobj *obj;
+	long interval_us;
+	long offset_us;
 	reqc->errcode = 0;
 
 	rc = linebuf_printf(reqc, "[");
 	if (rc)
 		return rc;
 	count = 0;
-	LIST_FOREACH(p, &plugin_list, entry) {
+	ldmsd_cfg_lock(LDMSD_CFGOBJ_PLUGIN);
+	for (obj = ldmsd_cfgobj_first(LDMSD_CFGOBJ_PLUGIN);
+			obj; obj = ldmsd_cfgobj_next(obj)) {
+
 		if (count) {
 			rc = linebuf_printf(reqc, ",\n");
 			if (rc)
-				return rc;
+				goto out;
 		}
+		p = container_of(obj, struct ldmsd_plugin, cfgobj);
 
 		count++;
+		if (p->type == LDMSD_PLUGIN_SAMPLER) {
+			interval_us = LDMSD_SAMPLER(p)->sample_interval_us;
+			offset_us = LDMSD_SAMPLER(p)->sample_offset_us;
+		} else {
+			interval_us = 0;
+			offset_us = 0;
+		}
 		rc = linebuf_printf(reqc,
-			       "{\"name\":\"%s\",\"type\":\"%s\","
+			       "{\"name\":\"%s (%s)\",\"type\":\"%s\","
 			       "\"sample_interval_us\":%ld,"
 			       "\"sample_offset_us\":%ld,"
 			       "\"libpath\":\"%s\"}",
-			       p->plugin->name,
-			       plugn_state_str(p->plugin->type),
-			       p->sample_interval_us, p->sample_offset_us,
+			       p->cfgobj.name,
+			       p->name,
+			       plugn_state_str(p->type),
+			       interval_us, offset_us,
 			       p->libpath);
 		if (rc)
-			return rc;
+			goto out;
 	}
 	rc = linebuf_printf(reqc, "]");
+ out:
+	ldmsd_cfg_unlock(LDMSD_CFGOBJ_PLUGIN);
 	return rc;
 }
 
@@ -5056,23 +5063,28 @@ static int plugn_status_handler(ldmsd_req_ctxt_t reqc)
 
 static int plugn_load_handler(ldmsd_req_ctxt_t reqc)
 {
-	char *plugin_name, *attr_name;
-	plugin_name = NULL;
+	char *name, *attr_name, *plugin;
+	name = NULL;
+	plugin = NULL;
 	size_t cnt = 0;
 
 	attr_name = "name";
-	plugin_name = ldmsd_req_attr_str_value_get_by_id(reqc, LDMSD_ATTR_NAME);
-	if (!plugin_name) {
+	name = ldmsd_req_attr_str_value_get_by_id(reqc, LDMSD_ATTR_NAME);
+	if (!name) {
 		ovis_log(config_log, OVIS_LERROR, "load plugin called without name=$plugin");
 		goto einval;
 	}
 
-	reqc->errcode = ldmsd_load_plugin(plugin_name, reqc->line_buf,
-							reqc->line_len);
+	attr_name = "plugin";
+	plugin = ldmsd_req_attr_str_value_get_by_id(reqc, LDMSD_ATTR_PLUGIN);
+
+	reqc->errcode = ldmsd_load_plugin(name, plugin?plugin:name,
+						reqc->line_buf,
+						reqc->line_len);
 	if (reqc->errcode)
 		cnt = strlen(reqc->line_buf) + 1;
 	else
-		__dlog(DLOG_CFGOK, "load name=%s\n", plugin_name);
+		__dlog(DLOG_CFGOK, "load name=%s\n", name);
 	goto send_reply;
 
 einval:
@@ -5081,7 +5093,8 @@ einval:
 			"The attribute '%s' is required by load.", attr_name);
 send_reply:
 	ldmsd_send_req_response(reqc, reqc->line_buf);
-	free(plugin_name);
+	free(name);
+	free(plugin);
 	return 0;
 }
 
@@ -5210,23 +5223,28 @@ send_reply:
 	return 0;
 }
 
-extern struct plugin_list plugin_list;
 int __plugn_list_string(ldmsd_req_ctxt_t reqc)
 {
 	char *name = NULL;
 	int rc, count = 0;
-	struct ldmsd_plugin_cfg *p;
+	struct ldmsd_cfgobj *obj;
+	struct ldmsd_plugin *p;
 	rc = 0;
 
 	name = ldmsd_req_attr_str_value_get_by_id(reqc, LDMSD_ATTR_NAME);
+	ldmsd_cfg_lock(LDMSD_CFGOBJ_PLUGIN);
 
-	LIST_FOREACH(p, &plugin_list, entry) {
+	for (obj = ldmsd_cfgobj_first(LDMSD_CFGOBJ_PLUGIN); obj;
+			obj = ldmsd_cfgobj_next(obj)) {
+
+		p = container_of(obj, struct ldmsd_plugin, cfgobj);
+
 		if (name && (0 != strcmp(name, p->name)))
 			continue;
 
-		if (p->plugin->usage) {
+		if (p->usage) {
 			rc = linebuf_printf(reqc, "%s\n%s",
-					p->name, p->plugin->usage(p->plugin));
+					p->name, p->usage(p));
 		} else {
 			rc = linebuf_printf(reqc, "%s\n", p->name);
 		}
@@ -5234,6 +5252,7 @@ int __plugn_list_string(ldmsd_req_ctxt_t reqc)
 			goto out;
 		count++;
 	}
+	ldmsd_cfg_unlock(LDMSD_CFGOBJ_PLUGIN);
 	if (name && (0 == count)) {
 		reqc->line_off = snprintf(reqc->line_buf, reqc->line_len,
 				"Plugin '%s' not loaded.", name);
@@ -6182,8 +6201,8 @@ static int dump_cfg_handler(ldmsd_req_ctxt_t reqc)
 {
 	FILE *fp = NULL;
 	char *filename = NULL;
-	extern struct plugin_list plugin_list;
-	struct ldmsd_plugin_cfg *p;
+	struct ldmsd_cfgobj *obj;
+	struct ldmsd_plugin *p;
 	int rc;
 	int i;
 	char hostname[128], port_no[32];
@@ -6295,10 +6314,13 @@ static int dump_cfg_handler(ldmsd_req_ctxt_t reqc)
 	/* Plugins */
 	struct avl_q_item *avl;
 	struct avl_q_item *kwl;
-	LIST_FOREACH(p, &plugin_list, entry) {
+	ldmsd_cfg_lock(LDMSD_CFGOBJ_PLUGIN);
+	for (obj = ldmsd_cfgobj_first(LDMSD_CFGOBJ_PLUGIN); obj;
+			obj = ldmsd_cfgobj_next(obj)) {
+		p = container_of(obj, struct ldmsd_plugin, cfgobj);
 		fprintf(fp, "load name=%s\n", p->name);
-		avl = TAILQ_FIRST(&p->plugin->avl_q);
-		kwl = TAILQ_FIRST(&p->plugin->kwl_q);
+		avl = TAILQ_FIRST(&p->avl_q);
+		kwl = TAILQ_FIRST(&p->kwl_q);
 		/* Assume that the lengths of av_list_q and kw_list_q are equal. */
 		while (avl) {
 			fprintf(fp, "config name=%s ", p->name);
@@ -6319,16 +6341,17 @@ static int dump_cfg_handler(ldmsd_req_ctxt_t reqc)
 			kwl = TAILQ_NEXT(kwl, entry);
 		}
 
-		if (p->plugin->type == LDMSD_PLUGIN_SAMPLER) {
-			if (p->os) {
+		if (p->type == LDMSD_PLUGIN_SAMPLER) {
+			if (LDMSD_SAMPLER(p)->os) {
 				/* Plugin is running. */
 				fprintf(fp, "start name=%s interval=%ld offset=%ld\n",
-					p->plugin->name,
-					p->sample_interval_us,
-					p->sample_offset_us);
+					p->name,
+					LDMSD_SAMPLER(p)->sample_interval_us,
+					LDMSD_SAMPLER(p)->sample_offset_us);
 			}
 		}
 	}
+	ldmsd_cfg_unlock(LDMSD_CFGOBJ_PLUGIN);
 	/*  Updaters */
 	ldmsd_name_match_t match;
 	ldmsd_updtr_t updtr;

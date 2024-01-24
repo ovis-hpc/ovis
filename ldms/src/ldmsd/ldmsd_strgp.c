@@ -365,7 +365,7 @@ out_2:
 	free(match);
 out_1:
 	ldmsd_strgp_unlock(strgp);
-	ldmsd_strgp_put(strgp);
+	ldmsd_strgp_put(strgp, "find");
 	return rc;
 }
 
@@ -396,7 +396,7 @@ int ldmsd_strgp_prdcr_del(const char *strgp_name, const char *regex_str,
 	free(match);
 out_1:
 	ldmsd_strgp_unlock(strgp);
-	ldmsd_strgp_put(strgp);
+	ldmsd_strgp_put(strgp, "find");
 	return rc;
 }
 
@@ -451,7 +451,7 @@ int ldmsd_strgp_metric_add(const char *strgp_name, const char *metric_name,
 	TAILQ_INSERT_TAIL(&strgp->metric_list, metric, entry);
 out_1:
 	ldmsd_strgp_unlock(strgp);
-	ldmsd_strgp_put(strgp);
+	ldmsd_strgp_put(strgp, "find");
 	return rc;
 }
 
@@ -480,7 +480,7 @@ int ldmsd_strgp_metric_del(const char *strgp_name, const char *metric_name,
 	free(metric);
 out_1:
 	ldmsd_strgp_unlock(strgp);
-	ldmsd_strgp_put(strgp);
+	ldmsd_strgp_put(strgp, "find");
 	return rc;
 }
 
@@ -488,7 +488,7 @@ static ldmsd_strgp_ref_t strgp_ref_new(ldmsd_strgp_t strgp)
 {
 	ldmsd_strgp_ref_t ref = calloc(1, sizeof *ref);
 	if (ref)
-		ref->strgp = ldmsd_strgp_get(strgp);
+		ref->strgp = ldmsd_strgp_get(strgp, "strgp_ref");
 	return ref;
 }
 
@@ -519,17 +519,17 @@ static int strgp_open(ldmsd_strgp_t strgp, ldmsd_prdcr_set_t prd_set)
 	int i, idx, rc;
 	const char *name;
 	ldmsd_strgp_metric_t metric;
-	struct ldmsd_plugin_cfg *store;
+	struct ldmsd_plugin *pi;
 	int alloc_digest = 0;
 
 	if (!prd_set->set)
 		return ENOENT;
 
 	if (!strgp->store) {
-		store = ldmsd_get_plugin(strgp->plugin_name);
-		if (!store)
+		pi = ldmsd_get_plugin(strgp->plugin_name);
+		if (!pi)
 			return ENOENT;
-		strgp->store = store->store;
+		strgp->store = container_of(pi, struct ldmsd_store, base);
 	}
 	/* Build metric list from the schema in the producer set */
 	strgp->metric_count = 0;
@@ -611,11 +611,11 @@ int strgp_decomp_init(ldmsd_strgp_t strgp, ldmsd_req_ctxt_t reqc)
 
 	if (!strgp->store) {
 		/* load store */
-		struct ldmsd_plugin_cfg *store;
-		store = ldmsd_get_plugin(strgp->plugin_name);
-		if (!store)
+		struct ldmsd_plugin *pi;
+		pi = ldmsd_get_plugin(strgp->plugin_name);
+		if (!pi)
 			return ENOENT;
-		strgp->store = store->store;
+		strgp->store = container_of(pi, struct ldmsd_store, base);
 	}
 	assert(!strgp->decomp);
 	return ldmsd_decomp_config(strgp, strgp->decomp_name, reqc);
@@ -642,7 +642,7 @@ int ldmsd_strgp_update_prdcr_set(ldmsd_strgp_t strgp, ldmsd_prdcr_set_t prd_set)
 	case LDMSD_STRGP_STATE_STOPPED:
 		if (ref) {
 			LIST_REMOVE(ref, entry);
-			ldmsd_strgp_put(ref->strgp);
+			ldmsd_strgp_put(ref->strgp, "strgp_ref");
 			ref->strgp = NULL;
 			free(ref);
 		}
@@ -750,7 +750,7 @@ int ldmsd_strgp_start(const char *name, ldmsd_sec_ctxt_t ctxt)
 		return ENOENT;
 	}
 	rc = __ldmsd_strgp_start(strgp, ctxt);
-	ldmsd_strgp_put(strgp);
+	ldmsd_strgp_put(strgp, "find");
 	return rc;
 }
 
@@ -783,7 +783,7 @@ int ldmsd_strgp_stop(const char *strgp_name, ldmsd_sec_ctxt_t ctxt)
 	if (!strgp)
 		return ENOENT;
 	rc = __ldmsd_strgp_stop(strgp, ctxt);
-	ldmsd_strgp_put(strgp);
+	ldmsd_strgp_put(strgp, "find");
 	return rc;
 }
 
@@ -795,7 +795,7 @@ int ldmsd_strgp_del(const char *strgp_name, ldmsd_sec_ctxt_t ctxt)
 {
 	int rc = 0;
 	ldmsd_strgp_t strgp;
-	struct ldmsd_plugin_cfg *pi;
+	struct ldmsd_plugin *pi = NULL;
 
 	pthread_mutex_lock(cfgobj_locks[LDMSD_CFGOBJ_STRGP]);
 	strgp = (ldmsd_strgp_t)__cfgobj_find(strgp_name, LDMSD_CFGOBJ_STRGP);
@@ -818,11 +818,11 @@ int ldmsd_strgp_del(const char *strgp_name, ldmsd_sec_ctxt_t ctxt)
 	}
 
 	/* Put back the reference taken when linking the plugin to the strgp. */
-	pi = strgp->store->base.pi;
-	__atomic_sub_fetch(&pi->ref_count, 1, __ATOMIC_SEQ_CST);
+	pi = &strgp->store->base;
 
 	rbt_del(cfgobj_trees[LDMSD_CFGOBJ_STRGP], &strgp->obj.rbn);
-	ldmsd_strgp_put(strgp); /* tree reference */
+	ldmsd_strgp_put(strgp, "cfgobj_tree"); /* tree reference */
+	ldmsd_strgp_put(strgp, "init");
 
 	if (strgp->decomp) {
 		strgp->decomp->release_decomp(strgp);
@@ -834,7 +834,9 @@ out_1:
 out_0:
 	pthread_mutex_unlock(cfgobj_locks[LDMSD_CFGOBJ_STRGP]);
 	if (strgp)
-		ldmsd_strgp_put(strgp); /* `find` reference */
+		ldmsd_strgp_put(strgp, "find"); /* `find` reference */
+	if (pi)
+		ldmsd_put_plugin(pi);
 	return rc;
 }
 
