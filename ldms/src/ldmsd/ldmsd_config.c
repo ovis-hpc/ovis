@@ -885,6 +885,9 @@ int __req_filter_failover(ldmsd_cfg_xprt_t x, ldmsd_req_hdr_t req, void *ctxt)
 	case LDMSD_STRGP_START_REQ:
 		rc = __req_deferred_start(req, LDMSD_CFGOBJ_STRGP);
 		break;
+	case LDMSD_PRDCR_LISTEN_START_REQ:
+		rc = __req_deferred_start(req, LDMSD_CFGOBJ_PRDCR_LISTEN);
+		break;
 	default:
 		rc = -1;
 	}
@@ -954,10 +957,18 @@ int ldmsd_cfgobjs_start(int (*filter)(ldmsd_cfgobj_t))
 			ldmsd_cfg_unlock(LDMSD_CFGOBJ_STRGP);
 			goto out;
 		}
-                __dlog(DLOG_CFGOK, "strgp_start name=%s # delayed \n",
-                        obj->name);
+		__dlog(DLOG_CFGOK, "strgp_start name=%s # delayed \n",
+			obj->name);
 	}
 	ldmsd_cfg_unlock(LDMSD_CFGOBJ_STRGP);
+
+	ldmsd_cfg_lock(LDMSD_CFGOBJ_PRDCR_LISTEN);
+	LDMSD_CFGOBJ_FOREACH(obj, LDMSD_CFGOBJ_PRDCR_LISTEN) {
+		if (filter && filter(obj))
+			continue;
+		((ldmsd_prdcr_listen_t)obj)->state = LDMSD_PRDCR_LISTEN_STATE_RUNNING;
+	}
+	ldmsd_cfg_unlock(LDMSD_CFGOBJ_PRDCR_LISTEN);
 
 out:
 	return rc;
