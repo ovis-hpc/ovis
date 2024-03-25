@@ -40,9 +40,16 @@ static ldmsd_msg_log_f msglog __attribute__((format(printf, 2, 3)));
 
 #define LOG(_level_, _fmt_, ...) ovis_log(aks_log, _level_, _fmt_, ##__VA_ARGS__)
 
+#if 0
 #define LOG_ERROR(FMT, ...) LOG(OVIS_LERROR, FMT, ##__VA_ARGS__)
-#define LOG_INFO(FMT, ...) LOG(OVIS_LINFO, FMT, ##__VA_ARGS__)
 #define LOG_WARN(FMT, ...) LOG(OVIS_LWARNING, FMT, ##__VA_ARGS__)
+#define LOG_INFO(FMT, ...) LOG(OVIS_LINFO, FMT, ##__VA_ARGS__)
+#define LOG_DEBUG(FMT, ...) LOG(OVIS_LDEBUG, FMT, ##__VA_ARGS__)
+#endif
+#define LOG_ERROR(FMT, ...) msglog(LDMSD_LERROR, FMT, ##__VA_ARGS__)
+#define LOG_WARN(FMT, ...) msglog(LDMSD_LWARNING, FMT, ##__VA_ARGS__)
+#define LOG_INFO(FMT, ...) msglog(LDMSD_LINFO, FMT, ##__VA_ARGS__)
+#define LOG_DEBUG(FMT, ...) msglog(LDMSD_LDEBUG, FMT, ##__VA_ARGS__)
 
 typedef struct aks_handle_s
 {
@@ -108,7 +115,8 @@ serdes_schema_find(aks_handle_t sh, char *schema_name,
 		  ldms_schema_t lschema, ldmsd_row_t row)
 {
 	struct rbn *rbn;
-	serdes_schema_t *sschema = NULL;
+	serdes_schema_t *previous_schema = NULL;
+	serdes_schema_t *current_schema = NULL;
 	struct schema_entry *entry;
 	char *json_buf = NULL;
 	size_t json_len;
@@ -116,40 +124,64 @@ serdes_schema_find(aks_handle_t sh, char *schema_name,
 	int rc;
 
 	pthread_mutex_lock(&schema_rbt_lock);
-	/* Check if the schema is already cached */
+	/* Check if the schema is already cached in this plugin */
 	rbn = rbt_find(&schema_tree, schema_name);
 	if (rbn) {
 		entry = container_of(rbn, struct schema_entry, rbn);
-		sschema = entry->serdes_schema;
+		current_schema = entry->serdes_schema;
 		goto out;
 	}
 	entry = calloc(1, sizeof(*entry));
 	if (!entry)
 		goto out;
 
-	/* Check if the schema is already present in the registry */
-	sschema = serdes_schema_get(sh->serdes, schema_name, -1,
-				    errstr, sizeof(errstr));
-	if (sschema)
-		/* Yes, cache it */
-		goto cache;
+	/* Look up the schema by name in the registry.
+           Name alone does not tell us if the schema matches this row, so we
+           will still need to continue on and try pushing an updated schema.
+           The registry should handle duplicates or schema evolution testing.
+        */
+	previous_schema = serdes_schema_get(sh->serdes,
+                                            schema_name, -1,
+                                            errstr, sizeof(errstr));
 
-	/* Create a new schema from the row specification and LDMS schema */
+	/* Generate a new schema from the row specification and LDMS schema */
 	rc = ldmsd_row_to_json_avro_schema(row, &json_buf, &json_len);
 	if (rc)
 		goto out;
-	sschema =
-	    serdes_schema_add(sh->serdes,
-			      schema_name, -1,
-			      json_buf, json_len,
-			      errstr, sizeof(errstr));
-	if (!sschema) {
+
+        /* Push the generated schema to the registry */
+        current_schema = serdes_schema_add(sh->serdes,
+                                             schema_name, -1,
+                                             json_buf, json_len,
+                                             errstr, sizeof(errstr));
+	if (!current_schema) {
 		LOG_ERROR("%s\n", json_buf);
 		LOG_ERROR("Error '%s' creating schema '%s'\n", errstr, schema_name);
 		goto out;
 	}
-cache:
-	entry->serdes_schema = sschema;
+
+        /* Log information about which schema was used */
+        if (previous_schema != NULL) {
+                if (serdes_schema_id(current_schema)
+                    == serdes_schema_id(previous_schema)) {
+                        LOG_INFO("Using existing id %d for schema name '%s'\n",
+                                 serdes_schema_id(current_schema),
+                                 schema_name);
+                } else {
+                        LOG_WARN("Using replacement id %d for schema name '%s' (previous id %d)\n",
+                                 serdes_schema_id(current_schema),
+                                 schema_name,
+                                 serdes_schema_id(previous_schema));
+                        serdes_schema_destroy(previous_schema);
+                }
+        } else {
+                LOG_INFO("Using brand new id %d for schema name '%s'\n",
+                         serdes_schema_id(current_schema),
+                         schema_name);
+        }
+
+        /* Cache the schema in this plugin */
+	entry->serdes_schema = current_schema;
 	entry->ldms_schema = lschema;
 	entry->schema_name = strdup(schema_name);
 	rbn_init(&entry->rbn, entry->schema_name);
@@ -158,7 +190,7 @@ out:
 	pthread_mutex_unlock(&schema_rbt_lock);
 	if (json_buf)
 		free(json_buf);
-	return sschema;
+	return current_schema;
 }
 
 pthread_mutex_t sk_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -442,6 +474,8 @@ static aks_handle_t __handle_new(ldmsd_strgp_t strgp)
 
 	sh->encoding = g_serdes_encoding;
 	sh->topic_fmt = strdup(g_topic_fmt);
+	if (!sh->topic_fmt)
+		goto err_1;
 
 	sh->rd_conf = rd_kafka_conf_dup(g_rd_conf);
 	if (!sh->rd_conf)
@@ -487,6 +521,7 @@ err_3:
 err_2:
 	rd_kafka_conf_destroy(sh->rd_conf);
 err_1:
+	free(sh->topic_fmt);
 	free(sh);
 err_0:
 	return NULL;
@@ -688,40 +723,33 @@ static int set_avro_value_from_col(avro_value_t *col_value,
 	return rc;
 }
 
-static int serialize_row_as_avro(serdes_t *serdes,
-				 serdes_schema_t *serdes_schema,
-				 ldmsd_row_t row, avro_value_t *avro)
+static int serialize_columns_of_row(avro_schema_t schema,
+                                    ldmsd_row_t row, avro_value_t *avro_row)
 {
 	int rc, i;
 	ldmsd_col_t col;
-	avro_schema_t schema = serdes_schema_avro(serdes_schema);
-	avro_value_iface_t  *class =
-	    avro_generic_class_from_schema(schema);
-
-	avro_value_t avro_row, avro_col;
-	avro_generic_value_new(class, &avro_row);
+	avro_value_t avro_col;
 
 	for (i = 0; i < row->col_count; i++) {
 		char *avro_name;
 		col = &row->cols[i];
 		avro_name = ldmsd_avro_name_get(col->name);
-		rc = avro_value_get_by_name(&avro_row, avro_name,
+		rc = avro_value_get_by_name(avro_row, avro_name,
 					    &avro_col, NULL);
 		free(avro_name);
 		if (rc) {
-			LOG_ERROR("Error %d retrieving '%s' "
-				"from '%s' schema\n", rc, col->name, avro_schema_name(schema));
+			LOG_ERROR("Error %d retrieving '%s' from '%s' schema\n",
+                                  rc, col->name, avro_schema_name(schema));
 			continue;
 		}
 		rc = set_avro_value_from_col(&avro_col, col);
 	}
 #ifdef AVRO_KAFKA_DEBUG
 	char *json_buf;
-	avro_value_to_json(&avro_row, 0, &json_buf);
+	avro_value_to_json(avro_row, 0, &json_buf);
 	fprintf(stderr, "%s\n", json_buf);
 	free(json_buf);
 #endif
-	*avro = avro_row;
 	return 0;
 }
 
@@ -913,6 +941,50 @@ static char *get_topic_name(aks_handle_t sh, ldms_set_t set, ldmsd_row_t row)
 	return topic;
 }
 
+
+static int row_to_avro_payload(aks_handle_t sh, ldmsd_row_t row,
+                               void **payload, size_t *sizep)
+{
+        serdes_schema_t *serdes_schema;
+        avro_schema_t schema;
+        avro_value_iface_t *class;
+        avro_value_t avro_row;
+
+        char errstr[512];
+        int rc = 0;
+
+        serdes_schema = serdes_schema_find(sh, (char *)row->schema_name, NULL, row);
+        if (!serdes_schema) {
+                LOG_ERROR("A serdes schema for '%s' could not be "
+                          "constructed.\n", row->schema_name);
+                rc = 1;
+                goto out1;
+        }
+        schema = serdes_schema_avro(serdes_schema);
+        class = avro_generic_class_from_schema(schema);
+        avro_generic_value_new(class, &avro_row);
+
+        /* Encode ldmsd_row_s as an Avro value */
+        rc = serialize_columns_of_row(schema, row, &avro_row);
+        if (rc) {
+                LOG_ERROR("Failed to format row as Avro value, error: %d\n", rc);
+                goto out2;
+        }
+        /* Serialize an Avro value into a buffer */
+        if (serdes_schema_serialize_avro(serdes_schema, &avro_row,
+                                         payload, sizep,
+                                         errstr, sizeof(errstr))) {
+                LOG_ERROR("Failed to serialize Avro row: '%s'\n", errstr);
+                rc = 1;
+                goto out2;
+        }
+out2:
+        avro_value_decref(&avro_row);
+        avro_value_iface_decref(class);
+out1:
+        return rc;
+}
+
 /* protected by strgp->lock */
 static int
 commit_rows(ldmsd_strgp_t strgp, ldms_set_t set, ldmsd_row_list_t row_list,
@@ -921,9 +993,7 @@ commit_rows(ldmsd_strgp_t strgp, ldms_set_t set, ldmsd_row_list_t row_list,
 	aks_handle_t sh;
 	rd_kafka_topic_t *rkt;
 	ldmsd_row_t row;
-	avro_value_t avro_row;
 	int rc;
-	char errstr[512];
 
 	sh = strgp->store_handle;
 	if (!sh)
@@ -938,40 +1008,28 @@ commit_rows(ldmsd_strgp_t strgp, ldms_set_t set, ldmsd_row_list_t row_list,
 	{
 		void *ser_buf = NULL;
 		size_t ser_buf_size;
-		int ser_size;
-		serdes_schema_t *serdes_schema;
+                int ser_size;
 
 		char *topic_name = get_topic_name(sh, set, row);
-		LOG_INFO("topic name %s\n", topic_name);
+		if (!topic_name) {
+			LOG_ERROR("get_topic_name failed for schema '%s'\n", row->schema_name);
+			continue;
+		}
+		LOG_DEBUG("topic name %s\n", topic_name);
 		rkt = rd_kafka_topic_new(sh->rd, topic_name, NULL);
 		if (!rkt)
 		{
 			LOG_ERROR("rd_kafka_topic_new(\"%s\") failed, "
 				  "errno: %d\n",
-				  row->schema_name, errno);
-			continue;
+				  topic_name, errno);
+			goto skip_row_0;
 		}
 		switch (sh->encoding) {
 		case AKS_ENCODING_AVRO:
-			serdes_schema = serdes_schema_find(sh, (char *)row->schema_name, NULL, row);
-			if (!serdes_schema) {
-				LOG_ERROR("A serdes schema for '%s' could not be "
-					"constructed.\n", row->schema_name);
-				continue;
-			}
-			/* Encode ldmsd_row_s as an Avro value */
-			rc = serialize_row_as_avro(sh->serdes, serdes_schema, row, &avro_row);
+                        rc = row_to_avro_payload(sh, row, &ser_buf, &ser_buf_size);
 			if (rc) {
-				LOG_ERROR("Failed to format row as Avro value, error: %d\n", rc);
-				continue;
-			}
-			/* Serialize an Avro value into a buffer */
-			if (serdes_schema_serialize_avro(serdes_schema, &avro_row,
-							&ser_buf, &ser_buf_size,
-							errstr, sizeof(errstr))) {
-				LOG_ERROR("Failed to serialize Avro row: '%s'\n", errstr);
-				avro_value_decref(&avro_row);
-				continue;
+				LOG_ERROR("Failed to serialize row as AVRO object, error: %d", rc);
+				goto skip_row_1;
 			}
 			break;
 		case AKS_ENCODING_JSON:
@@ -979,9 +1037,9 @@ commit_rows(ldmsd_strgp_t strgp, ldms_set_t set, ldmsd_row_list_t row_list,
 			rc = ldmsd_row_to_json_object(row, (char **)&ser_buf, &ser_size);
 			if (rc) {
 				LOG_ERROR("Failed to serialize row as JSON object, error: %d", rc);
-				continue;
+				goto skip_row_1;
 			}
-			ser_buf_size = ser_size;
+			ser_buf_size = (size_t)ser_size;
 			break;
 		default:
 			assert(0 == "Invalid/unsupported serialization encoding");
@@ -995,10 +1053,11 @@ commit_rows(ldmsd_strgp_t strgp, ldms_set_t set, ldmsd_row_list_t row_list,
 			LOG_ERROR("rd_kafka_produce(\"%s\") failed, "
 				  "\"%s\"\n", topic_name,
 				  rd_kafka_err2str(rd_kafka_last_error()));
+			free(ser_buf);
 		}
+	skip_row_1:
 		rd_kafka_topic_destroy(rkt);
-		if (sh->encoding == AKS_ENCODING_AVRO)
-			avro_value_decref(&avro_row);
+	skip_row_0:
 		free(topic_name);
 	}
 
