@@ -63,6 +63,10 @@ struct req_str_id {
 
 const struct req_str_id req_str_id_table[] = {
 	/* This table need to be sorted by keyword for bsearch() */
+	{  "advertise_add",      LDMSD_ADVERTISE_ADD_REQ  },
+	{  "advertise_del",      LDMSD_PRDCR_DEL_REQ  },
+	{  "advertise_start",    LDMSD_PRDCR_START_REQ  },
+	{  "advertise_stop",     LDMSD_PRDCR_STOP_REQ  },
 	{  "auth_add",           LDMSD_AUTH_ADD_REQ  },
 	{  "auth_del",           LDMSD_AUTH_DEL_REQ  },
 	{  "banner",             LDMSD_BANNER_MODE_REQ  },
@@ -105,6 +109,10 @@ const struct req_str_id req_str_id_table[] = {
 	{  "prdcr_add",          LDMSD_PRDCR_ADD_REQ  },
 	{  "prdcr_del",          LDMSD_PRDCR_DEL_REQ  },
 	{  "prdcr_hint_tree",    LDMSD_PRDCR_HINT_TREE_REQ  },
+	{  "prdcr_listen_add",   LDMSD_PRDCR_LISTEN_ADD_REQ  },
+	{  "prdcr_listen_del",   LDMSD_PRDCR_LISTEN_DEL_REQ  },
+	{  "prdcr_listen_start", LDMSD_PRDCR_LISTEN_START_REQ  },
+	{  "prdcr_listen_stop",  LDMSD_PRDCR_LISTEN_STOP_REQ  },
 	{  "prdcr_set_status",   LDMSD_PRDCR_SET_REQ  },
 	{  "prdcr_start",        LDMSD_PRDCR_START_REQ  },
 	{  "prdcr_start_regex",  LDMSD_PRDCR_START_REGEX_REQ  },
@@ -254,6 +262,7 @@ const char *ldmsd_req_id2str(enum ldmsd_request req_id)
 	case LDMSD_PRDCR_HINT_TREE_REQ   : return "PRDCR_HINT_TREE_REQ";
 	case LDMSD_PRDCR_SUBSCRIBE_REQ   : return "PRDCR_SUBSCRIBE_REQ";
 	case LDMSD_PRDCR_UNSUBSCRIBE_REQ : return "PRDCR_UNSUBSCRIBE_REQ";
+	case LDMSD_PRDCR_LISTEN_ADD_REQ      : return "PRDCR_LISTEN_REQ";
 
 	case LDMSD_STRGP_ADD_REQ        : return "STRGP_ADD_REQ";
 	case LDMSD_STRGP_DEL_REQ        : return "STRGP_DEL_REQ";
@@ -867,6 +876,63 @@ out:
 	return rc;
 }
 
+int __ldmsd_parse_advertise_add_req(struct ldmsd_parse_ctxt *ctxt)
+{
+	char *av = ctxt->av;
+	size_t len = strlen(av);
+	size_t cnt = 0;
+	char *tmp, *name, *value, *ptr, *dummy;
+	int rc = 0;
+	dummy = NULL;
+	tmp = malloc(len);
+	if (!tmp) {
+		rc = ENOMEM;
+		goto out;
+	}
+	av = strtok_r(av, __ldmsd_cfg_delim, &ptr);
+	while (av) {
+		ctxt->av = av;
+		dummy = strdup(av);
+		if (!dummy) {
+			rc = ENOMEM;
+			goto out;
+		}
+		__get_attr_name_value(dummy, &name, &value);
+		if (!name) {
+			/* av is neither attribute value nor keyword */
+			rc = EINVAL;
+			goto out;
+		}
+		rc = add_attr_from_attr_str(name, value,
+					    &ctxt->request,
+					    &ctxt->request_sz);
+		if (rc)
+			goto out;
+		av = strtok_r(NULL, __ldmsd_cfg_delim, &ptr);
+		free(dummy);
+		dummy = NULL;
+	}
+	rc = add_attr_from_attr_str("type", "advertise",
+				    &ctxt->request,
+				    &ctxt->request_sz);
+	if (rc)
+		goto out;
+
+	if (cnt) {
+		tmp[cnt-1] = '\0'; /* Replace the last ' ' with '\0' */
+		/* Add an attribute of type 'STRING' */
+		rc = add_attr_from_attr_str(NULL, tmp,
+					    &ctxt->request,
+					    &ctxt->request_sz);
+	}
+
+out:
+	if (tmp)
+		free(tmp);
+	if (dummy)
+		free(dummy);
+	return rc;
+}
 
 struct ldmsd_req_array *
 ldmsd_parse_config_str(const char *cfg, uint32_t msg_no, size_t xprt_max_msg)
@@ -942,6 +1008,9 @@ ldmsd_parse_config_str(const char *cfg, uint32_t msg_no, size_t xprt_max_msg)
 		break;
 	case LDMSD_DEFAULT_AUTH_REQ:
 		rc = __ldmsd_parse_default_auth_req(&ctxt);
+		break;
+	case LDMSD_ADVERTISE_ADD_REQ:
+		rc = __ldmsd_parse_advertise_add_req(&ctxt);
 		break;
 	default:
 		rc = __ldmsd_parse_generic(&ctxt);
